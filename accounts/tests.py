@@ -5,6 +5,10 @@ from accounts.models import UserGuru
 
 
 class LoginPageTests(TestCase):
+    def test_root_redirects_to_login(self):
+        response = self.client.get("/")
+        self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
+
     def test_superuser_defaults_to_admin_role(self):
         admin_user = UserGuru.objects.create_superuser(
             username="root",
