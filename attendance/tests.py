@@ -36,6 +36,8 @@ class AttendanceScanTests(TestCase):
         self.assertContains(response, 'data-scan-shortcut')
         self.assertContains(response, 'id="activate-camera"')
         self.assertContains(response, "attendance-scan-start")
+        self.assertContains(response, "selfie tidak diperlukan")
+        self.assertNotContains(response, 'id="selfie"')
 
     def test_tv_qr_records_arrival_and_departure_once(self):
         payload = generate_dynamic_qr_token()
@@ -46,7 +48,7 @@ class AttendanceScanTests(TestCase):
         self.assertEqual(response.json()["event"], "pulang")
         self.assertEqual(AbsensiLog.objects.count(), 1)
 
-    def test_printed_qr_enforces_geofence_and_selfie(self):
+    def test_printed_qr_enforces_geofence_but_not_selfie(self):
         LokasiSekolah.objects.create(latitude=0, longitude=0, radius_toleransi_meter=100)
         point = TitikQRCetak.objects.create(label_titik="Gerbang")
         payload = f"{PRINTABLE_PREFIX}{point.kode_lokasi}"
@@ -58,8 +60,14 @@ class AttendanceScanTests(TestCase):
         response = self.client.post(reverse("attendance-scan"), {
             "qr_payload": payload, "latitude": "0", "longitude": "0",
         })
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("selfie", response.json()["message"])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["event"], "masuk")
+        self.assertFalse(AbsensiLog.objects.get(guru=self.teacher).foto_masuk)
+
+    def test_printed_qr_accepts_optional_selfie_and_keeps_it_encrypted(self):
+        LokasiSekolah.objects.create(latitude=0, longitude=0, radius_toleransi_meter=100)
+        point = TitikQRCetak.objects.create(label_titik="Gerbang")
+        payload = f"{PRINTABLE_PREFIX}{point.kode_lokasi}"
         photo_upload = self.make_image()
         plaintext = photo_upload.read()
         photo_upload.seek(0)

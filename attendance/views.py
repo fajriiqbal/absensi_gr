@@ -169,7 +169,6 @@ def scan_api(request):
     lat_value = request.POST.get("latitude", "")
     lng_value = request.POST.get("longitude", "")
     method = None
-    needs_selfie = False
     user_lat = user_lng = None
 
     if qr_payload.startswith(PRINTABLE_PREFIX):
@@ -192,12 +191,13 @@ def scan_api(request):
         distance = calculate_haversine(user_lat, user_lng, school.latitude, school.longitude)
         if distance > school.radius_toleransi_meter:
             return api_error(f"Absen ditolak. Anda berada {int(distance)} m di luar lokasi sekolah.")
-        try:
-            validate_selfie(request.FILES.get("foto_selfie"))
-        except ValueError as exc:
-            return api_error(str(exc))
+        photo = request.FILES.get("foto_selfie")
+        if photo:
+            try:
+                validate_selfie(photo)
+            except ValueError as exc:
+                return api_error(str(exc))
         method = "qr_cetak"
-        needs_selfie = True
     elif qr_payload.startswith(TV_PREFIX):
         claims, valid = verify_dynamic_qr_token(qr_payload.removeprefix(TV_PREFIX))
         if not valid:
@@ -228,7 +228,7 @@ def scan_api(request):
                     waktu_masuk=now,
                     lat_masuk=user_lat if method == "qr_cetak" or lat_value else None,
                     long_masuk=user_lng if method == "qr_cetak" or lng_value else None,
-                    foto_masuk=request.FILES.get("foto_selfie") if needs_selfie else None,
+                    foto_masuk=request.FILES.get("foto_selfie") if method == "qr_cetak" else None,
                     metode_scan=method,
                     status=status,
                 )

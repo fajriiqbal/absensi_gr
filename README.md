@@ -42,7 +42,7 @@ Gunakan akun dengan role `admin` untuk Dashboard Admin dan panel data. Akun `gur
 
 Guru mengajukan izin pada `/guru/perijinan/` dengan mengisi tanggal, alasan, dan lampiran bukti PDF/JPG/PNG (maksimal 5 MB). Setiap pengajuan dapat memuat beberapa rincian jadwal: hari/tanggal, mapel dan jam yang diampu, mapel/jam lukiran, keterangan kelas (contoh `VII-A`), serta guru rekan. Kamad melihat rincian tersebut saat approval. Setelah disetujui, guru dapat mengunduh surat persetujuan PDF dari riwayatnya; rekap Excel Kamad menyertakan sheet rincian jadwal.
 
-QR TV ditandatangani HS256 dan berlaku 15 detik. QR poster membutuhkan koordinat GPS dalam radius lokasi sekolah serta selfie JPEG/PNG/WEBP maksimal 5 MB. Koordinat harus berasal dari Geolocation API pada browser dan HTTPS diperlukan di luar localhost.
+QR TV ditandatangani HS256 dan berlaku 15 detik. QR poster membutuhkan koordinat GPS dalam radius lokasi sekolah; selfie tidak wajib. Jika diunggah, selfie harus JPEG/PNG/WEBP maksimal 5 MB. Koordinat berasal dari Geolocation API browser dan HTTPS diperlukan di luar localhost.
 
 Media bukti dienkripsi dengan Fernet saat disimpan dan hanya dapat diakses lewat endpoint privat yang memeriksa pemilik atau role Kamad/staff. Untuk production, gunakan PostgreSQL melalui variabel `DB_*`, HTTPS, `DJANGO_DEBUG=0`, `DJANGO_SECRET_KEY` acak, serta `MEDIA_ENCRYPTION_KEY` permanen. Backup media dan kedua kunci melalui secret manager dengan rotasi terencana. Jangan menayangkan folder `MEDIA_ROOT` langsung ke publik.
 

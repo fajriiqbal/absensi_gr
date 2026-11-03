@@ -177,7 +177,7 @@ def generate_printable_qr_image(kode_lokasi_uuid):
 ```
 
 ### 4.2 Logika Validasi Scan QR Cetak
-Karena QR cetak bersifat statis (bisa difoto), backend **WAJIB** memvalidasi koordinat GPS dan meminta foto selfie dari HP guru.
+Karena QR cetak bersifat statis (bisa difoto), backend **WAJIB** memvalidasi koordinat GPS dalam radius sekolah. Foto selfie bersifat opsional dan bukan syarat mencatat presensi.
 ```python
 # attendance/views.py (Logic Excerpt)
 def validate_scan_request(request):
@@ -195,12 +195,7 @@ def validate_scan_request(request):
                 "message": f"Absen Ditolak! Anda berada {int(distance)}m di luar lokasi sekolah."
             }, status=400)
             
-        # Wajibkan adanya upload foto selfie saat scan poster cetak
-        if 'foto_selfie' not in request.FILES:
-            return JsonResponse({
-                "status": "error",
-                "message": "Foto bukti selfie diperlukan untuk scan QR Cetak!"
-            }, status=400)
+        # Foto selfie boleh disertakan, tetapi tidak diwajibkan.
 
     # 2. Jika QR berasal dari TV Dinamis
     elif qr_data.startswith("MTS-TV-DYNAMIC:"):
@@ -239,6 +234,5 @@ def validate_scan_request(request):
 * **Geolocator Pasif:** Mengambil koordinat GPS di latar belakang saat pemindaian berhasil.
 
 ---
-
 
 
