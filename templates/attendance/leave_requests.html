@@ -1,0 +1,346 @@
+
+{% extends "base.html" %}
+
+{% block title %}Perizinan Guru | Presensi{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl px-5 py-8 sm:py-10">
+
+    <!-- Header halaman -->
+    <header class="border-b border-[#dbe1dc] pb-5">
+        <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">
+            Layanan Guru
+        </p>
+
+        <h1 class="mt-2 text-2xl font-semibold text-[#173f35]">
+            Pengajuan izin
+        </h1>
+
+        <p class="mt-1 text-sm text-[#63736b]">
+            Ajukan izin dan pantau keputusan Kepala Madrasah.
+        </p>
+    </header>
+
+    <!-- Konten utama -->
+    <div class="mt-7 grid gap-10 lg:grid-cols-[.85fr_1.15fr]">
+
+        <!-- Form pengajuan izin -->
+        <section>
+            <h2 class="text-lg font-semibold">
+                Buat pengajuan
+            </h2>
+
+            <form
+                method="post"
+                enctype="multipart/form-data"
+                class="mt-4 space-y-4 border-y border-[#dbe1dc] bg-white p-5"
+            >
+                {% csrf_token %}
+
+                <!-- Error umum form -->
+                {% if form.non_field_errors %}
+                    <div
+                        class="rounded border border-[#ecc5bb] bg-[#fff2ee] p-3 text-sm text-[#8d3829]"
+                        role="alert"
+                    >
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+
+                <!-- Jenis izin -->
+                <label
+                    class="block text-sm font-medium"
+                    for="{{ form.jenis_izin.id_for_label }}"
+                >
+                    Jenis izin
+
+                    {{ form.jenis_izin }}
+
+                    {% for error in form.jenis_izin.errors %}
+                        <span class="mt-1 block text-xs text-[#a34431]">
+                            {{ error }}
+                        </span>
+                    {% endfor %}
+                </label>
+
+                <!-- Rentang tanggal izin -->
+                <div class="grid gap-3 sm:grid-cols-2">
+
+                    <label
+                        class="block text-sm font-medium"
+                        for="{{ form.tgl_mulai.id_for_label }}"
+                    >
+                        Tanggal mulai
+
+                        {{ form.tgl_mulai }}
+
+                        {% for error in form.tgl_mulai.errors %}
+                            <span class="mt-1 block text-xs text-[#a34431]">
+                                {{ error }}
+                            </span>
+                        {% endfor %}
+                    </label>
+
+                    <label
+                        class="block text-sm font-medium"
+                        for="{{ form.tgl_selesai.id_for_label }}"
+                    >
+                        Tanggal selesai
+
+                        {{ form.tgl_selesai }}
+
+                        {% for error in form.tgl_selesai.errors %}
+                            <span class="mt-1 block text-xs text-[#a34431]">
+                                {{ error }}
+                            </span>
+                        {% endfor %}
+                    </label>
+
+                </div>
+
+                <!-- Alasan izin -->
+                <label
+                    class="block text-sm font-medium"
+                    for="{{ form.alasan.id_for_label }}"
+                >
+                    Alasan
+
+                    {{ form.alasan }}
+
+                    {% for error in form.alasan.errors %}
+                        <span class="mt-1 block text-xs text-[#a34431]">
+                            {{ error }}
+                        </span>
+                    {% endfor %}
+                </label>
+
+                <label class="block text-sm font-medium" for="{{ form.file_bukti.id_for_label }}">
+                    Lampiran bukti <span class="font-normal text-[#63736b]">(PDF/JPG/PNG, maks. 5 MB)</span>
+                    {{ form.file_bukti }}
+                    {% for error in form.file_bukti.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
+                </label>
+
+                <section class="border-t border-[#dbe1dc] pt-5">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h3 class="font-semibold">Jam pelajaran yang dialihkan</h3>
+                            <p class="mt-1 text-xs leading-5 text-[#63736b]">Isi satu baris untuk setiap jadwal yang perlu dilukirkan kepada guru lain.</p>
+                        </div>
+                        <span class="text-xs text-[#63736b]">Maksimal 20 baris</span>
+                    </div>
+
+                    {{ schedule_formset.management_form }}
+                    {% if schedule_formset.non_form_errors %}<p class="mt-3 text-sm text-[#a34431]">{{ schedule_formset.non_form_errors }}</p>{% endif %}
+                    <div id="schedule-forms" class="mt-4 space-y-4">
+                        {% for schedule_form in schedule_formset %}
+                            <fieldset class="schedule-row space-y-3 border border-[#dbe1dc] p-4">
+                                <legend class="px-1 text-sm font-semibold text-[#173f35]">Jadwal <span class="schedule-number">{{ forloop.counter }}</span></legend>
+                                {{ schedule_form.id }}
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <label class="block text-sm font-medium">Hari{{ schedule_form.hari }}{% for error in schedule_form.hari.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
+                                    <label class="block text-sm font-medium">Tanggal{{ schedule_form.tanggal }}{% for error in schedule_form.tanggal.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
+                                    <label class="block text-sm font-medium">Mapel yang diampu{{ schedule_form.mapel_diampu }}{% for error in schedule_form.mapel_diampu.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
+                                    <label class="block text-sm font-medium">Jam pelajaran yang diampu{{ schedule_form.jam_pelajaran_diampu }}{% for error in schedule_form.jam_pelajaran_diampu.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
+                                    <label class="block text-sm font-medium">Mapel lukiran{{ schedule_form.mapel_lukiran }}{% for error in schedule_form.mapel_lukiran.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
+                                    <label class="block text-sm font-medium">Jam lukiran{{ schedule_form.jam_lukiran }}{% for error in schedule_form.jam_lukiran.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
+                                    <label class="block text-sm font-medium">Keterangan kelas yang dilukirkan{{ schedule_form.keterangan_kelas }}{% for error in schedule_form.keterangan_kelas.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
+                                    <label class="block text-sm font-medium sm:col-span-2">Nama guru yang diajak lukiran{{ schedule_form.guru_lukiran }}{% for error in schedule_form.guru_lukiran.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
+                                </div>
+                                <div class="hidden">{{ schedule_form.DELETE }}</div>
+                                <button class="remove-schedule text-sm font-medium text-[#a34431]" type="button">Hapus jadwal ini</button>
+                            </fieldset>
+                        {% endfor %}
+                    </div>
+                    <template id="empty-schedule-form">
+                        <fieldset class="schedule-row space-y-3 border border-[#dbe1dc] p-4">
+                            <legend class="px-1 text-sm font-semibold text-[#173f35]">Jadwal <span class="schedule-number"></span></legend>
+                            {{ schedule_formset.empty_form.id }}
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <label class="block text-sm font-medium">Hari{{ schedule_formset.empty_form.hari }}</label>
+                                <label class="block text-sm font-medium">Tanggal{{ schedule_formset.empty_form.tanggal }}</label>
+                                <label class="block text-sm font-medium">Mapel yang diampu{{ schedule_formset.empty_form.mapel_diampu }}</label>
+                                <label class="block text-sm font-medium">Jam pelajaran yang diampu{{ schedule_formset.empty_form.jam_pelajaran_diampu }}</label>
+                                <label class="block text-sm font-medium">Mapel lukiran{{ schedule_formset.empty_form.mapel_lukiran }}</label>
+                                <label class="block text-sm font-medium">Jam lukiran{{ schedule_formset.empty_form.jam_lukiran }}</label>
+                                <label class="block text-sm font-medium">Keterangan kelas yang dilukirkan{{ schedule_formset.empty_form.keterangan_kelas }}</label>
+                                <label class="block text-sm font-medium sm:col-span-2">Nama guru yang diajak lukiran{{ schedule_formset.empty_form.guru_lukiran }}</label>
+                            </div>
+                            <div class="hidden">{{ schedule_formset.empty_form.DELETE }}</div>
+                            <button class="remove-schedule text-sm font-medium text-[#a34431]" type="button">Hapus jadwal ini</button>
+                        </fieldset>
+                    </template>
+                    <button id="add-schedule" class="button button-muted mt-3" type="button">+ Tambah jadwal</button>
+                </section>
+
+                <!-- Tombol kirim -->
+                <button
+                    class="button button-primary w-full"
+                    type="submit"
+                >
+                    Kirim pengajuan
+                </button>
+            </form>
+        </section>
+
+        <!-- Riwayat pengajuan izin -->
+        <section>
+
+            <!-- Header riwayat -->
+            <div class="flex items-baseline justify-between gap-3">
+                <h2 class="text-lg font-semibold">
+                    Riwayat pengajuan
+                </h2>
+
+                <span class="text-sm text-[#63736b]">
+                    {{ requests|length }} pengajuan
+                </span>
+            </div>
+
+            <!-- Daftar pengajuan -->
+            <div class="mt-4 divide-y divide-[#dbe1dc] border-y border-[#dbe1dc] bg-white">
+
+                {% for leave_request in requests %}
+                    <article class="p-5">
+
+                        <!-- Jenis, periode, dan status -->
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+
+                            <div>
+                                <h3 class="font-semibold">
+                                    {{ leave_request.get_jenis_izin_display }}
+                                </h3>
+
+                                <p class="mt-1 text-sm text-[#63736b]">
+                                    {{ leave_request.tgl_mulai|date:"d M Y" }}
+                                    –
+                                    {{ leave_request.tgl_selesai|date:"d M Y" }}
+                                </p>
+                            </div>
+
+                            <!-- Status persetujuan -->
+                            {% if leave_request.status_approval == "disetujui" %}
+                                <span class="rounded bg-[#e4eee8] px-2.5 py-1 text-xs font-semibold text-[#17634c]">
+                                    Disetujui
+                                </span>
+
+                            {% elif leave_request.status_approval == "ditolak" %}
+                                <span class="rounded bg-[#fff0ec] px-2.5 py-1 text-xs font-semibold text-[#a34431]">
+                                    Ditolak
+                                </span>
+
+                            {% else %}
+                                <span class="rounded bg-[#f1f2e9] px-2.5 py-1 text-xs font-semibold text-[#6c6944]">
+                                    Menunggu approval
+                                </span>
+                            {% endif %}
+
+                        </div>
+
+                        <!-- Alasan pengajuan -->
+                        <p class="mt-3 whitespace-pre-line text-sm leading-6 text-[#52625b]">
+                            {{ leave_request.alasan }}
+                        </p>
+
+                        {% with schedules=leave_request.jadwal_pelajaran.all %}
+                            {% if schedules %}
+                                <div class="mt-3 border-l-2 border-[#9bb9a7] pl-3">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-[#52625b]">Jadwal lukiran</p>
+                                    {% for schedule in schedules %}
+                                        <p class="mt-1 text-sm text-[#63736b]">{{ schedule.get_hari_display }}, {{ schedule.tanggal|date:"d M Y" }} · {{ schedule.mapel_diampu }} ({{ schedule.jam_pelajaran_diampu }}) → {{ schedule.mapel_lukiran }} ({{ schedule.jam_lukiran }}) · Kelas {{ schedule.keterangan_kelas }} · {{ schedule.guru_lukiran.nama_lengkap }}</p>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+
+                        <!-- Tindakan berdasarkan status -->
+                        {% if leave_request.status_approval == "disetujui" %}
+
+                            <a
+                                class="button button-primary mt-4"
+                                href="{% url 'leave-letter' leave_request.pk %}"
+                            >
+                                Unduh surat izin PDF
+                            </a>
+
+                        {% elif leave_request.status_approval == "ditolak" and leave_request.catatan_kamad %}
+
+                            <p class="mt-3 border-l-2 border-[#c77a65] pl-3 text-sm text-[#7b4034]">
+                                Catatan Kamad:
+                                {{ leave_request.catatan_kamad }}
+                            </p>
+
+                        {% endif %}
+
+                        <!-- Waktu pemrosesan -->
+                        {% if leave_request.approved_at %}
+                            <p class="mt-2 text-xs text-[#7a8780]">
+                                Diproses
+                                {{ leave_request.approved_at|date:"d M Y, H:i" }}
+                            </p>
+                        {% endif %}
+
+                    </article>
+
+                {% empty %}
+                    <p class="px-5 py-10 text-center text-sm text-[#63736b]">
+                        Belum ada pengajuan izin.
+                    </p>
+                {% endfor %}
+
+            </div>
+        </section>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const schedulePrefix = '{{ schedule_formset.prefix }}';
+const scheduleList = document.querySelector('#schedule-forms');
+const scheduleTotal = document.querySelector(`#id_${schedulePrefix}-TOTAL_FORMS`);
+const addScheduleButton = document.querySelector('#add-schedule');
+const scheduleTemplate = document.querySelector('#empty-schedule-form');
+
+function renumberSchedules() {
+    let number = 0;
+    scheduleList.querySelectorAll('.schedule-row').forEach(row => {
+        if (row.classList.contains('hidden')) return;
+        number += 1;
+        row.querySelector('.schedule-number').textContent = number;
+    });
+    addScheduleButton.disabled = Number(scheduleTotal.value) >= 20;
+}
+
+function updateDayFromDate(dateInput) {
+    if (!dateInput.value) return;
+    const dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+    const daySelect = dateInput.closest('.schedule-row').querySelector('.jadwal-hari');
+    daySelect.value = dayNames[new Date(`${dateInput.value}T00:00:00`).getDay()];
+}
+
+scheduleList.addEventListener('click', event => {
+    if (!event.target.matches('.remove-schedule')) return;
+    const row = event.target.closest('.schedule-row');
+    const deleteInput = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+    if (deleteInput) deleteInput.checked = true;
+    row.classList.add('hidden');
+    renumberSchedules();
+});
+
+scheduleList.addEventListener('change', event => {
+    if (event.target.matches('.jadwal-tanggal')) updateDayFromDate(event.target);
+});
+
+addScheduleButton.addEventListener('click', () => {
+    const index = Number(scheduleTotal.value);
+    if (index >= 20) return;
+    const markup = scheduleTemplate.innerHTML.replaceAll('__prefix__', index);
+    scheduleList.insertAdjacentHTML('beforeend', markup);
+    scheduleTotal.value = index + 1;
+    renumberSchedules();
+});
+
+renumberSchedules();
+</script>
+{% endblock %}

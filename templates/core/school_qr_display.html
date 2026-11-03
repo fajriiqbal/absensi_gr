@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Presensi Sekolah | QR TV{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-[#173f35] px-5 py-10 text-white sm:py-14" x-data="schoolQr()" x-init="start()">
+  <div class="mx-auto flex max-w-5xl flex-col items-center text-center">
+    <p class="text-sm font-semibold uppercase tracking-[.24em] text-[#b7d4c5]">{{ school_name }}</p>
+    <h1 class="mt-3 text-3xl font-semibold sm:text-5xl">Pindai untuk presensi</h1>
+    <div class="mt-8 rounded-md bg-white p-4 shadow-xl"><div id="tv-qr" class="flex h-64 w-64 items-center justify-center sm:h-80 sm:w-80"></div></div>
+    <p class="mt-6 text-lg text-[#d5e6dc]">QR berganti dalam <span class="font-bold tabular-nums" x-text="remaining"></span> detik</p>
+    <p class="mt-3 min-h-6 text-sm text-[#b7d4c5]" x-text="error"></p>
+    <p class="mt-10 text-sm text-[#b7d4c5]">Pastikan pemindai kamera mengarah ke layar ini.</p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+function schoolQr() { return { remaining: 15, error: '', timer: null, start() { this.refresh(); setInterval(() => { this.remaining -= 1; if (this.remaining <= 0) this.refresh(); }, 1000); }, async refresh() { try { const response = await fetch('{% url "dynamic-qr" %}', { cache: 'no-store' }); if (!response.ok) throw new Error(); const data = await response.json(); const holder = document.querySelector('#tv-qr'); holder.replaceChildren(); new QRCode(holder, { text: data.payload, width: 288, height: 288, correctLevel: QRCode.CorrectLevel.M }); this.remaining = data.ttl; this.error = ''; } catch { this.error = 'QR belum tersedia. Mencoba kembali...'; this.remaining = 3; } } }; }
+</script>
+{% endblock %}

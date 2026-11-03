@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Masuk | Presensi Guru{% endblock %}
+{% block content %}
+<div class="mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl items-center gap-12 px-5 py-12 md:grid-cols-[1.1fr_.9fr]">
+  <section class="max-w-xl">
+    <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Presensi Madrasah</p>
+    <h1 class="mt-4 text-4xl font-semibold leading-tight text-[#173f35] sm:text-5xl">Selamat datang kembali.</h1>
+    <p class="mt-4 max-w-md leading-7 text-[#5c6a63]">Masuk menggunakan NIP untuk mencatat kehadiran dan mengelola aktivitas presensi.</p>
+    <div class="mt-10 flex gap-3 text-sm text-[#52625b]"><span class="h-2.5 w-2.5 rounded-full bg-[#17634c]"></span><span>Data presensi tersimpan pada sistem sekolah.</span></div>
+  </section>
+  <section class="w-full max-w-md justify-self-center rounded-md border border-[#dbe1dc] bg-white p-6 shadow-sm sm:p-8">
+    <h2 class="text-xl font-semibold">Masuk ke akun</h2>
+    <p class="mt-1 text-sm text-[#69766f]">Gunakan kredensial yang diberikan administrator.</p>
+    <form method="post" class="mt-6 space-y-4">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div role="alert" class="rounded border border-[#ecc5bb] bg-[#fff2ee] p-3 text-sm text-[#8d3829]">NIP atau kata sandi tidak cocok.</div>{% endif %}
+      <label class="block text-sm font-medium">NIP<input class="field mt-1.5" name="username" type="text" autocomplete="username" required autofocus></label>
+      <label class="block text-sm font-medium">Kata sandi<input class="field mt-1.5" name="password" type="password" autocomplete="current-password" required></label>
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <button class="button button-primary w-full" type="submit">Masuk</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

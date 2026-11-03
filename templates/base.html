@@ -1,0 +1,93 @@
+{% load static %}
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173f35">
+  <link rel="manifest" href="{% static 'app/manifest.json' %}">
+  <title>{% block title %}Presensi Guru{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    :root { color-scheme: light; }
+    body { background: #f4f5f1; color: #202b27; }
+    .field { width: 100%; border: 1px solid #cfd7d2; border-radius: 6px; padding: 11px 12px; background: white; }
+    .field:focus { outline: 2px solid #68a58a; outline-offset: 1px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 6px; padding: 10px 14px; font-weight: 650; }
+    .button-primary { color: white; background: #17634c; }
+    .button-primary:hover { background: #104d3b; }
+    .button-muted { color: #25443a; background: #e5ece7; }
+    .mobile-bottom-nav { display: none; }
+    @media (max-width: 767px) {
+      .mobile-content { padding-bottom: calc(6.25rem + env(safe-area-inset-bottom)); }
+      .mobile-bottom-nav { position: fixed; z-index: 50; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; min-height: 76px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #dbe1dc; background: rgba(255, 255, 255, .97); box-shadow: 0 -8px 24px rgba(23, 63, 53, .08); }
+      .mobile-nav-item { display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #66756d; font-size: 10px; line-height: 1.1; text-align: center; }
+      .mobile-nav-item svg { width: 19px; height: 19px; stroke-width: 1.8; }
+      .mobile-nav-item[aria-current="page"] { color: #17634c; font-weight: 700; }
+      .mobile-scan-item { display: flex; flex-direction: column; align-items: center; gap: 2px; color: #17634c; font-size: 10px; font-weight: 700; line-height: 1; }
+      .mobile-scan-button { display: grid; width: 58px; height: 58px; margin-top: -27px; place-items: center; border: 4px solid #f4f5f1; border-radius: 999px; background: #17634c; color: white; box-shadow: 0 5px 14px rgba(23, 99, 76, .28); }
+      .mobile-scan-button svg { width: 25px; height: 25px; stroke-width: 2; }
+      .mobile-scan-item:active .mobile-scan-button { transform: scale(.96); }
+    }
+    [x-cloak] { display: none !important; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen antialiased">
+  {% if request.user.is_authenticated and not hide_navigation %}
+  <header class="sticky top-0 z-40 border-b border-[#dbe1dc] bg-white">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-5">
+      <a href="{% url 'role-home' %}" class="shrink-0 font-bold tracking-wide text-[#174d3d]">PRESENSI <span class="font-normal text-[#63736b]">/ {% if request.user.role == "admin" or request.user.is_superuser %}ADMIN{% elif request.user.role == "kamad" %}KAMAD{% else %}GURU{% endif %}</span></a>
+      <div class="hidden flex-wrap items-center justify-end gap-4 text-sm md:flex">
+        <span class="text-[#52625b]">{{ request.user.nama_lengkap }}</span>
+        {% if request.user.role == "admin" or request.user.is_superuser %}<a href="{% url 'admin-dashboard' %}" class="text-[#17634c] hover:underline">Dashboard Admin</a><a href="{% url 'attendance-report' %}" class="text-[#17634c] hover:underline">Rekap Absensi</a><a href="{% url 'qr-points' %}" class="text-[#17634c] hover:underline">Cetak QR</a>{% elif request.user.role == "kamad" %}<a href="{% url 'kamad-dashboard' %}" class="text-[#17634c] hover:underline">Dashboard Kamad</a><a href="{% url 'leave-report' %}" class="text-[#17634c] hover:underline">Rekap Izin</a>{% else %}<a href="{% url 'guru-scan' %}" class="text-[#17634c] hover:underline">Scan</a><a href="{% url 'guru-my-qr' %}" class="text-[#17634c] hover:underline">QR Kiosk</a><a href="{% url 'leave-requests' %}" class="text-[#17634c] hover:underline">Perizinan</a>{% endif %}
+        <a href="{% url 'school-qr-display' %}" class="text-[#17634c] hover:underline">Monitor TV</a>
+        <a href="{% url 'pwa-setup' %}" class="text-[#17634c] hover:underline">Setup PWA</a>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="text-[#52625b] hover:text-[#17231e]">Keluar</button></form>
+      </div>
+      <div class="flex items-center gap-3 md:hidden">
+        <span class="max-w-[110px] truncate text-xs text-[#52625b]">{{ request.user.nama_lengkap }}</span>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="text-xs font-semibold text-[#17634c]">Keluar</button></form>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+  {% if messages %}<div class="mx-auto max-w-7xl px-5 pt-4">{% for message in messages %}<p class="mb-2 rounded border border-[#b9d4c6] bg-[#e7f2eb] px-4 py-3 text-sm">{{ message }}</p>{% endfor %}</div>{% endif %}
+  <main class="{% if request.user.is_authenticated and not hide_navigation %}mobile-content{% endif %}">{% block content %}{% endblock %}</main>
+  {% block scripts %}{% endblock %}
+  {% if request.user.is_authenticated and not hide_navigation %}
+  <nav class="mobile-bottom-nav md:hidden" aria-label="Navigasi utama">
+    {% if request.user.role == "guru" %}
+      <a class="mobile-nav-item" href="{% url 'leave-requests' %}" aria-label="Perizinan"><i data-lucide="calendar-days"></i><span>Perizinan</span></a>
+      <a class="mobile-nav-item" href="{% url 'guru-my-qr' %}" aria-label="QR Kiosk"><i data-lucide="qr-code"></i><span>QR Kiosk</span></a>
+      <a class="mobile-scan-item" href="{% url 'guru-scan' %}" data-scan-shortcut aria-label="Scan presensi"><span class="mobile-scan-button"><i data-lucide="scan-line"></i></span><span>Scan</span></a>
+      <a class="mobile-nav-item" href="{% url 'school-qr-display' %}" aria-label="Monitor TV"><i data-lucide="monitor"></i><span>Monitor</span></a>
+      <a class="mobile-nav-item" href="{% url 'pwa-setup' %}" aria-label="Setup perangkat"><i data-lucide="settings-2"></i><span>Setup</span></a>
+    {% elif request.user.role == "kamad" %}
+      <a class="mobile-nav-item" href="{% url 'leave-report' %}" aria-label="Rekap izin"><i data-lucide="file-spreadsheet"></i><span>Rekap izin</span></a>
+      <a class="mobile-nav-item" href="{% url 'kamad-dashboard' %}" aria-label="Dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+      <a class="mobile-scan-item" href="{% url 'kamad-dashboard' %}#approval" aria-label="Approval izin"><span class="mobile-scan-button"><i data-lucide="clipboard-check"></i></span><span>Approval</span></a>
+      <a class="mobile-nav-item" href="{% url 'school-qr-display' %}" aria-label="Monitor TV"><i data-lucide="monitor"></i><span>Monitor</span></a>
+      <a class="mobile-nav-item" href="{% url 'pwa-setup' %}" aria-label="Setup perangkat"><i data-lucide="settings-2"></i><span>Setup</span></a>
+    {% else %}
+      <a class="mobile-nav-item" href="{% url 'attendance-report' %}" aria-label="Rekap absensi"><i data-lucide="file-spreadsheet"></i><span>Rekap</span></a>
+      <a class="mobile-nav-item" href="{% url 'admin-dashboard' %}" aria-label="Dashboard admin"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+      <a class="mobile-scan-item" href="{% url 'qr-points' %}" aria-label="Cetak QR"><span class="mobile-scan-button"><i data-lucide="qr-code"></i></span><span>Cetak QR</span></a>
+      <a class="mobile-nav-item" href="{% url 'school-qr-display' %}" aria-label="Monitor TV"><i data-lucide="monitor"></i><span>Monitor</span></a>
+      <a class="mobile-nav-item" href="{% url 'pwa-setup' %}" aria-label="Setup perangkat"><i data-lucide="settings-2"></i><span>Setup</span></a>
+    {% endif %}
+  </nav>
+  {% endif %}
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>window.lucide?.createIcons();</script>
+  <script>
+    document.querySelector('[data-scan-shortcut]')?.addEventListener('click', event => {
+      if (window.location.pathname === '{% url "guru-scan" %}') {
+        event.preventDefault();
+        document.dispatchEvent(new Event('attendance-scan-start'));
+      }
+    });
+  </script>
+</body>
+</html>
