@@ -8,7 +8,19 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-change-this-secret-ke
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 if not DEBUG and SECRET_KEY.startswith("dev-only-"):
     raise ImproperlyConfigured("DJANGO_SECRET_KEY wajib diatur di luar mode debug.")
-ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "DJANGO_ALLOWED_HOSTS",
+        "localhost,127.0.0.1,absen.mtssunankalijagatulung.sch.id,www.absen.mtssunankalijagatulung.sch.id",
+    ).split(",")
+    if host.strip()
+]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",

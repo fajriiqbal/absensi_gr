@@ -18,6 +18,12 @@ python manage.py runserver
 
 Atur `DJANGO_SECRET_KEY` dan `MEDIA_ENCRYPTION_KEY` pada environment sebelum deployment. Buat media key dengan `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` dan simpan di secret manager; jangan menggantinya setelah ada file terenkripsi. Tambahkan lokasi sekolah melalui `/django-admin/` sebelum QR poster digunakan. Akun admin/kamad/guru dapat dibuat dari admin Django dan diberi role yang sesuai.
 
+## Deployment cPanel
+
+Repo menyertakan `passenger_wsgi.py` untuk entry point aplikasi Python cPanel. Buat Python App dengan application root di folder hasil clone repo dan startup file `passenger_wsgi.py`, lalu entry point `application`. Atur environment variables aplikasi di cPanel berdasarkan `.env.example`; ganti semua placeholder, gunakan `DJANGO_DEBUG=0`, secret key acak, dan media encryption key Fernet yang valid. Gunakan database PostgreSQL cPanel dan sesuaikan `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, serta `DB_PORT`. Jangan mengunggah `.env` atau memasukkan kredensial ke Git.
+
+Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python manage.py migrate` dan `python manage.py collectstatic --noinput`, lalu restart Python App dari cPanel. Pastikan DNS subdomain `absen.mtssunankalijagatulung.sch.id` mengarah ke hosting dan SSL aktif sebelum mengakses aplikasi. Folder `MEDIA_ROOT` harus tetap privat; jangan arahkan document root subdomain ke folder media.
+
 ## Halaman
 
 - Login: `/login/`
