@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     "core",
     "attendance",
     "kamad_dashboard",
-]
+] 
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
