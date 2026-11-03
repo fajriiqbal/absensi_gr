@@ -22,7 +22,7 @@ Atur `DJANGO_SECRET_KEY` dan `MEDIA_ENCRYPTION_KEY` pada environment sebelum dep
 
 Repo menyertakan `passenger_wsgi.py` untuk entry point aplikasi Python cPanel. Buat Python App dengan application root di folder hasil clone repo dan startup file `passenger_wsgi.py`, lalu entry point `application`. Atur environment variables aplikasi di cPanel berdasarkan `.env.example`; ganti semua placeholder, gunakan `DJANGO_DEBUG=0`, secret key acak, dan media encryption key Fernet yang valid. Django tidak membaca `.env` secara otomatis. Gunakan database PostgreSQL cPanel dan sesuaikan `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, serta `DB_PORT`. Jangan mengunggah `.env` atau memasukkan kredensial ke Git. Lihat [panduan deployment cPanel](deployment_guide_for_cpanel.md) untuk langkah dan pemeriksaan error 500.
 
-Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python manage.py migrate` dan `python manage.py collectstatic --noinput`, lalu restart Python App dari cPanel. Pastikan DNS subdomain `absen.mtssunankalijagatulung.sch.id` mengarah ke hosting dan SSL aktif sebelum mengakses aplikasi. Folder `MEDIA_ROOT` harus tetap privat; jangan arahkan document root subdomain ke folder media.
+Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python manage.py migrate` dan `python manage.py collectstatic --noinput`, lalu restart Python App dari cPanel. WhiteNoise melayani hasil `collectstatic` (termasuk CSS admin) melalui `/static/`. Pastikan DNS subdomain `absen.mtssunankalijagatulung.sch.id` mengarah ke hosting dan SSL aktif sebelum mengakses aplikasi. Folder `MEDIA_ROOT` harus tetap privat; jangan arahkan document root subdomain ke folder media.
 
 ## Halaman
 

@@ -57,6 +57,8 @@ python manage.py collectstatic --noinput
 
 Jika `check` atau `migrate` gagal, perbaiki error yang ditampilkan sebelum melanjutkan. Setelah itu, kembali ke **Setup Python App**, restart aplikasi, lalu buka `https://absen.mtssunankalijagatulung.sch.id`.
 
+WhiteNoise melayani file hasil `collectstatic` (termasuk CSS admin Django) melalui `/static/`. Pastikan direktori `STATIC_ROOT` dapat ditulis oleh akun aplikasi. Jika halaman admin tidak memiliki CSS setelah update, tarik kode terbaru, aktifkan virtualenv, jalankan `python -m pip install -r requirements.txt` dan `python manage.py collectstatic --noinput`, lalu restart Python App.
+
 ## 4. Jika masih HTTP 500
 
 1. Periksa **Errors** di cPanel atau error log Passenger untuk aplikasi/domain dan baca traceback paling baru.
