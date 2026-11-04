@@ -35,6 +35,8 @@ class LoginPageTests(TestCase):
         response = self.client.get(reverse("login"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "NIP")
+        self.assertContains(response, "/static/app/images/logo-madrasah.png")
+        self.assertContains(response, 'rel="apple-touch-icon"')
         UserGuru.objects.create_user(
             username="guru", nip="198002", nama_lengkap="Guru Dua", email="guru2@example.test", password="StrongPass123!"
         )

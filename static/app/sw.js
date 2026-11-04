@@ -1,9 +1,9 @@
-const CACHE_NAME = 'presensi-static-v1';
+const CACHE_NAME = 'presensi-static-v2';
 const APP_ASSETS = [
 	'/static/app/manifest.json',
+	'/static/app/images/logo-madrasah.png',
 	'/static/app/icon-192.png',
 	'/static/app/icon-512.png',
-	'/static/app/icon.svg',
 ];
 
 self.addEventListener('install', event => {
