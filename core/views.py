@@ -6,13 +6,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.conf import settings
 from django.utils import timezone
 from django.urls import reverse
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from accounts.models import UserGuru
 from attendance.models import AbsensiLog, PengajuanIzin
 
 from .forms import WhatsAppSettingsForm
-from .models import TitikQRCetak, WhatsAppSettings
+from .management_forms import JadwalWaktuPresensiKhususForm, PengaturanWaktuPresensiForm
+from .models import JadwalWaktuPresensiKhusus, PengaturanWaktuPresensi, TitikQRCetak, WhatsAppSettings
 from .qr_engine import generate_dynamic_qr_token
 from .qr_generator import generate_printable_qr_pdf
 from .whatsapp_links import build_leave_notification_link
@@ -37,6 +38,49 @@ def admin_dashboard(request):
         "today_attendance_count": AbsensiLog.objects.filter(tanggal=timezone.localdate()).count(),
         "active_qr_count": TitikQRCetak.objects.filter(is_active=True).count(),
         "pending_leave_count": PengajuanIzin.objects.filter(status_approval="pending").count(),
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def attendance_settings(request):
+    if not admin_or_operator(request.user):
+        raise Http404
+    settings_obj = PengaturanWaktuPresensi.get_settings()
+    action = request.POST.get("action", "") if request.method == "POST" else ""
+    override_id = request.POST.get("override_id") or request.GET.get("ubah")
+    override = get_object_or_404(JadwalWaktuPresensiKhusus, pk=override_id) if override_id else None
+    settings_form = PengaturanWaktuPresensiForm(
+        request.POST if action == "save_settings" else None,
+        instance=settings_obj,
+    )
+    override_form = JadwalWaktuPresensiKhususForm(
+        request.POST if action == "save_override" else None,
+        instance=override,
+    )
+
+    if action == "save_settings":
+        if settings_form.is_valid():
+            settings_form.save()
+            messages.success(request, "Pengaturan waktu presensi berhasil disimpan.")
+            return redirect("attendance-settings")
+    elif action == "save_override":
+        if override_form.is_valid():
+            override_form.save()
+            messages.success(request, "Jadwal pulang khusus berhasil disimpan.")
+            return redirect("attendance-settings")
+    elif action == "delete_override":
+        if not override:
+            raise Http404
+        override.delete()
+        messages.success(request, "Jadwal pulang khusus berhasil dihapus.")
+        return redirect("attendance-settings")
+
+    return render(request, "core/attendance_settings.html", {
+        "settings_form": settings_form,
+        "override_form": override_form,
+        "overrides": JadwalWaktuPresensiKhusus.objects.order_by("tanggal"),
+        "editing_override": override,
     })
 
 

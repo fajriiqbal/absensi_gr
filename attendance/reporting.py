@@ -51,7 +51,14 @@ def build_attendance_summary(logs, teachers):
         totals[(teacher.pk, teacher.nip, teacher.nama_lengkap)]
     for log in logs:
         item = totals[(log.guru_id, log.guru.nip, log.guru.nama_lengkap)]
-        item[log.status] = item.get(log.status, 0) + 1
+        if log.status == "pulang_cepat":
+            item["pulang_cepat"] += 1
+        elif log.status == "terlambat":
+            item["terlambat"] += 1
+        else:
+            item["hadir"] += 1
+        if log.status_pulang == "pulang_cepat" and log.status != "pulang_cepat":
+            item["pulang_cepat"] += 1
         item["total"] += 1
     return [
         {"id": key[0], "nip": key[1], "nama": key[2], **counts}
@@ -102,7 +109,7 @@ def build_attendance_workbook(logs, year, month, teachers=()):
     summary.auto_filter.ref = f"A1:F{max(1, summary.max_row)}"
 
     details = workbook.create_sheet("Detail Absensi")
-    headers = ("Tanggal", "NIP", "Nama Guru", "Waktu Masuk", "Waktu Pulang", "Metode", "Status", "Catatan")
+    headers = ("Tanggal", "NIP", "Nama Guru", "Waktu Masuk", "Waktu Pulang", "Metode", "Status Masuk", "Status Pulang", "Catatan")
     for value in headers:
         details.cell(row=1, column=headers.index(value) + 1, value=value)
     for cell in details[1]:
@@ -111,8 +118,8 @@ def build_attendance_workbook(logs, year, month, teachers=()):
         cell.alignment = Alignment(vertical="center", wrap_text=True)
     details.row_dimensions[1].height = 30
     details.freeze_panes = "A2"
-    details.auto_filter.ref = f"A1:H{max(1, len(logs) + 1)}"
-    for index, width in enumerate((14, 20, 32, 18, 18, 32, 20, 40), start=1):
+    details.auto_filter.ref = f"A1:I{max(1, len(logs) + 1)}"
+    for index, width in enumerate((14, 20, 32, 18, 18, 32, 20, 22, 40), start=1):
         details.column_dimensions[get_column_letter(index)].width = width
     for log in logs:
         details.append((
@@ -123,6 +130,7 @@ def build_attendance_workbook(logs, year, month, teachers=()):
             _excel_datetime(log.waktu_pulang),
             excel_text(log.get_metode_scan_display()),
             excel_text(log.get_status_display()),
+            excel_text(log.get_status_pulang_display() if log.status_pulang else ""),
             excel_text(log.catatan),
         ))
     return _finish_workbook(workbook)

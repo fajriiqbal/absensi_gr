@@ -5,8 +5,8 @@ from .models import AbsensiLog, JadwalPelajaranIzin, PengajuanIzin
 
 @admin.register(AbsensiLog)
 class AbsensiLogAdmin(admin.ModelAdmin):
-    list_display = ("guru", "tanggal", "waktu_masuk", "waktu_pulang", "metode_scan", "status")
-    list_filter = ("tanggal", "metode_scan", "status")
+    list_display = ("guru", "tanggal", "waktu_masuk", "waktu_pulang", "metode_scan", "status", "status_pulang")
+    list_filter = ("tanggal", "metode_scan", "status", "status_pulang")
     search_fields = ("guru__nama_lengkap", "guru__nip")
 
 

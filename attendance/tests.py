@@ -1,6 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from io import BytesIO
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -10,10 +11,11 @@ from openpyxl import load_workbook
 from PIL import Image
 
 from accounts.models import UserGuru
-from core.models import LokasiSekolah, TitikQRCetak
-from core.qr_engine import PRINTABLE_PREFIX, generate_dynamic_qr_token
+from core.models import JadwalWaktuPresensiKhusus, LokasiSekolah, PengaturanWaktuPresensi, TitikQRCetak
+from core.qr_engine import PRINTABLE_PREFIX, generate_dynamic_qr_token, verify_dynamic_qr_token
 
 from attendance.models import AbsensiLog, PengajuanIzin
+from attendance.schedule import AttendanceScheduleError, record_attendance_event
 
 
 class AttendanceScanTests(TestCase):
@@ -27,6 +29,13 @@ class AttendanceScanTests(TestCase):
         self.addCleanup(setattr, photo_storage, "location", original_location)
         self.teacher = UserGuru.objects.create_user(
             username="guru1", nip="198001", nama_lengkap="Guru Satu", email="guru@example.test", password="StrongPass123!"
+        )
+        PengaturanWaktuPresensi.objects.create(
+            pk=1,
+            jam_mulai_masuk=time(0, 0),
+            batas_terlambat=time(0, 1),
+            jam_mulai_pulang=time(23, 58),
+            jam_pulang_normal=time(23, 59),
         )
         self.client.force_login(self.teacher)
 
@@ -48,13 +57,109 @@ class AttendanceScanTests(TestCase):
         self.assertContains(response, "cache: 'no-store'")
 
     def test_tv_qr_records_arrival_and_departure_once(self):
-        payload = generate_dynamic_qr_token()
-        response = self.client.post(reverse("attendance-scan"), {"qr_payload": payload})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["event"], "masuk")
-        response = self.client.post(reverse("attendance-scan"), {"qr_payload": generate_dynamic_qr_token()})
-        self.assertEqual(response.json()["event"], "pulang")
+        settings_obj = PengaturanWaktuPresensi.objects.get(pk=1)
+        settings_obj.jam_mulai_pulang = time(12, 0)
+        settings_obj.jam_pulang_normal = time(13, 40)
+        settings_obj.save()
+        today = timezone.localdate()
+        local_timezone = timezone.get_current_timezone()
+        arrival = timezone.make_aware(datetime.combine(today, time(7, 0)), local_timezone)
+        departure = timezone.make_aware(datetime.combine(today, time(12, 0)), local_timezone)
+        with (
+            patch("attendance.schedule.timezone.now", return_value=arrival),
+            patch(
+                "attendance.views.verify_dynamic_qr_token",
+                side_effect=lambda token: verify_dynamic_qr_token(token, arrival),
+            ),
+        ):
+            payload = generate_dynamic_qr_token(arrival)
+            response = self.client.post(reverse("attendance-scan"), {"qr_payload": payload})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["event"], "masuk")
+        with (
+            patch("attendance.schedule.timezone.now", return_value=departure),
+            patch(
+                "attendance.views.verify_dynamic_qr_token",
+                side_effect=lambda token: verify_dynamic_qr_token(token, departure),
+            ),
+        ):
+            payload = generate_dynamic_qr_token(departure)
+            response = self.client.post(reverse("attendance-scan"), {"qr_payload": payload})
+            self.assertEqual(response.json()["event"], "pulang")
         self.assertEqual(AbsensiLog.objects.count(), 1)
+        self.assertEqual(AbsensiLog.objects.get(guru=self.teacher).status_pulang, "pulang_cepat")
+
+    def test_schedule_windows_and_arrival_and_departure_statuses_are_separate(self):
+        settings_obj = PengaturanWaktuPresensi.objects.get(pk=1)
+        settings_obj.jam_mulai_masuk = time(5, 0)
+        settings_obj.batas_terlambat = time(7, 30)
+        settings_obj.jam_mulai_pulang = time(12, 0)
+        settings_obj.jam_pulang_normal = time(13, 40)
+        settings_obj.save()
+        today = timezone.localdate()
+        local_timezone = timezone.get_current_timezone()
+
+        def at(hour, minute):
+            return timezone.make_aware(datetime.combine(today, time(hour, minute)), local_timezone)
+
+        with self.assertRaisesMessage(AttendanceScheduleError, "dibuka pukul 05:00"):
+            record_attendance_event(self.teacher, method="qr_tv", now=at(4, 59))
+
+        log, event = record_attendance_event(self.teacher, method="qr_tv", now=at(7, 31))
+        self.assertEqual(event, "masuk")
+        self.assertEqual(log.status, "terlambat")
+        with self.assertRaisesMessage(AttendanceScheduleError, "dibuka pukul 12:00"):
+            record_attendance_event(self.teacher, method="qr_tv", now=at(11, 59))
+
+        log, event = record_attendance_event(self.teacher, method="qr_tv", now=at(13, 39))
+        self.assertEqual(event, "pulang")
+        self.assertEqual(log.status, "terlambat")
+        self.assertEqual(log.status_pulang, "pulang_cepat")
+
+        punctual_teacher = UserGuru.objects.create_user(
+            username="punctual-guru",
+            nip="198002",
+            nama_lengkap="Guru Tepat Waktu",
+            email="punctual@example.test",
+            password="GuruTepat!734",
+        )
+        record_attendance_event(punctual_teacher, method="qr_tv", now=at(7, 30))
+        log, _ = record_attendance_event(punctual_teacher, method="qr_tv", now=at(13, 40))
+        self.assertEqual(log.status, "hadir")
+        self.assertEqual(log.status_pulang, "tepat_waktu")
+
+        late_teacher = UserGuru.objects.create_user(
+            username="late-guru",
+            nip="198003",
+            nama_lengkap="Guru Sangat Terlambat",
+            email="very-late@example.test",
+            password="GuruTelat!734",
+        )
+        with self.assertRaisesMessage(AttendanceScheduleError, "sudah berakhir pukul 12:00"):
+            record_attendance_event(late_teacher, method="qr_tv", now=at(13, 40))
+
+    def test_date_specific_early_departure_schedule_is_used_for_checkout(self):
+        settings_obj = PengaturanWaktuPresensi.objects.get(pk=1)
+        settings_obj.jam_mulai_masuk = time(5, 0)
+        settings_obj.batas_terlambat = time(7, 30)
+        settings_obj.jam_mulai_pulang = time(12, 0)
+        settings_obj.jam_pulang_normal = time(13, 40)
+        settings_obj.save()
+        today = timezone.localdate()
+        JadwalWaktuPresensiKhusus.objects.create(
+            tanggal=today,
+            jam_mulai_pulang=time(11, 30),
+            jam_pulang=time(12, 0),
+            keterangan="Kegiatan sekolah selesai lebih awal",
+        )
+        local_timezone = timezone.get_current_timezone()
+
+        def at(hour, minute):
+            return timezone.make_aware(datetime.combine(today, time(hour, minute)), local_timezone)
+
+        record_attendance_event(self.teacher, method="qr_tv", now=at(7, 0))
+        log, _ = record_attendance_event(self.teacher, method="qr_tv", now=at(12, 0))
+        self.assertEqual(log.status_pulang, "tepat_waktu")
 
     def test_printed_qr_enforces_geofence_but_not_selfie(self):
         LokasiSekolah.objects.create(latitude=0, longitude=0, radius_toleransi_meter=100)
@@ -106,14 +211,57 @@ class AttendanceScanTests(TestCase):
 
         response = self.client.post(reverse("kiosk-scan"), {"qr_payload": "invalid"})
         self.assertEqual(response.status_code, 400)
-        qr_response = self.client.post(reverse("teacher-qr"))
-        self.assertEqual(qr_response.status_code, 200)
-        self.assertIn("no-store", qr_response["Cache-Control"])
-        response = self.client.post(reverse("kiosk-scan"), {"qr_payload": qr_response.json()["payload"]})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("berhasil", response.json()["message"])
+        settings_obj = PengaturanWaktuPresensi.objects.get(pk=1)
+        settings_obj.jam_mulai_pulang = time(12, 0)
+        settings_obj.jam_pulang_normal = time(13, 40)
+        settings_obj.save()
+        today = timezone.localdate()
+        local_timezone = timezone.get_current_timezone()
+        arrival = timezone.make_aware(datetime.combine(today, time(7, 0)), local_timezone)
+        departure = timezone.make_aware(datetime.combine(today, time(12, 0)), local_timezone)
+        with patch("attendance.schedule.timezone.now", return_value=arrival):
+            qr_response = self.client.post(reverse("teacher-qr"))
+            self.assertEqual(qr_response.status_code, 200)
+            self.assertIn("no-store", qr_response["Cache-Control"])
+            response = self.client.post(reverse("kiosk-scan"), {"qr_payload": qr_response.json()["payload"]})
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("berhasil", response.json()["message"])
+            self.assertEqual(response.json()["event"], "masuk")
+        with patch("attendance.schedule.timezone.now", return_value=departure):
+            qr_response = self.client.post(reverse("teacher-qr"))
+            response = self.client.post(reverse("kiosk-scan"), {"qr_payload": qr_response.json()["payload"]})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["event"], "pulang")
         log = AbsensiLog.objects.get(guru=self.teacher)
         self.assertEqual(log.metode_scan, "qr_guru")
+        self.assertEqual(log.status_pulang, "pulang_cepat")
+
+    def test_kiosk_manual_allows_checkout_without_a_second_selfie(self):
+        self.teacher.is_staff = True
+        self.teacher.save(update_fields=("is_staff",))
+        settings_obj = PengaturanWaktuPresensi.objects.get(pk=1)
+        settings_obj.jam_mulai_pulang = time(12, 0)
+        settings_obj.jam_pulang_normal = time(13, 40)
+        settings_obj.save()
+        today = timezone.localdate()
+        local_timezone = timezone.get_current_timezone()
+        arrival = timezone.make_aware(datetime.combine(today, time(7, 0)), local_timezone)
+        departure = timezone.make_aware(datetime.combine(today, time(12, 0)), local_timezone)
+
+        with patch("attendance.schedule.timezone.now", return_value=arrival):
+            response = self.client.post(reverse("kiosk-manual"), {
+                "nip": self.teacher.nip,
+                "foto_selfie": self.make_image(),
+            })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["event"], "masuk")
+
+        with patch("attendance.schedule.timezone.now", return_value=departure):
+            response = self.client.post(reverse("kiosk-manual"), {"nip": self.teacher.nip})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["event"], "pulang")
+        log = AbsensiLog.objects.get(guru=self.teacher)
+        self.assertEqual(log.status_pulang, "pulang_cepat")
 
     @staticmethod
     def make_image():
@@ -315,12 +463,15 @@ class AttendanceReportTests(TestCase):
         )
         today = timezone.localdate()
         for teacher, status in ((first_teacher, "hadir"), (second_teacher, "terlambat")):
-            AbsensiLog.objects.create(
+            log = AbsensiLog.objects.create(
                 guru=teacher,
                 waktu_masuk=timezone.now(),
                 metode_scan="qr_tv",
                 status=status,
             )
+            if teacher == first_teacher:
+                log.status_pulang = "pulang_cepat"
+                log.save(update_fields=("status_pulang",))
         self.client.force_login(admin_user)
         params = {"bulan": today.month, "tahun": today.year, "guru": first_teacher.pk}
         preview = self.client.get(reverse("attendance-report"), params)
@@ -335,7 +486,9 @@ class AttendanceReportTests(TestCase):
         self.assertEqual(summary.max_row, 2)
         self.assertEqual(summary["A2"].value, first_teacher.nip)
         self.assertEqual(summary["C2"].value, 1)
+        self.assertEqual(summary["E2"].value, 1)
         self.assertEqual(workbook["Detail Absensi"].max_row, 2)
+        self.assertEqual(workbook["Detail Absensi"]["H1"].value, "Status Pulang")
 
     def test_teacher_cannot_open_admin_attendance_report(self):
         teacher = UserGuru.objects.create_user(

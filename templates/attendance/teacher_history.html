@@ -37,6 +37,7 @@
             <div>
               <p class="text-xs text-[#7a8780]">Jam pulang</p>
               <p class="mt-1 font-semibold text-[#34483f]">{% if log.waktu_pulang %}{{ log.waktu_pulang|date:"H:i" }}{% else %}Belum tercatat{% endif %}</p>
+              <p class="mt-1 text-xs text-[#63736b]">{% if log.status_pulang %}{{ log.get_status_pulang_display }}{% else %}Status pulang belum ada{% endif %}</p>
             </div>
           </div>
         </article>

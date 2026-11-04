@@ -1,8 +1,6 @@
 import uuid
-from datetime import datetime
 import mimetypes
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import IntegrityError, transaction
@@ -21,6 +19,7 @@ from .forms import JadwalPelajaranIzinFormSetFactory, PengajuanIzinForm
 from .letters import generate_leave_letter_pdf
 from .models import AbsensiLog, PengajuanIzin
 from .reporting import MONTH_NAMES, build_attendance_summary, build_attendance_workbook, report_month_name, resolve_report_period
+from .schedule import AttendanceScheduleError, record_attendance_event
 
 
 MAX_SELFIE_SIZE = 5 * 1024 * 1024
@@ -230,33 +229,16 @@ def scan_api(request):
     else:
         return api_error("Format QR tidak didukung.")
 
-    now = timezone.now()
-    local_now = timezone.localtime(now)
-    today = timezone.localdate(now)
-    cutoff = datetime.strptime(getattr(settings, "ATTENDANCE_LATE_AFTER", "07:30"), "%H:%M").time()
-    status = "terlambat" if local_now.time() > cutoff else "hadir"
     try:
-        with transaction.atomic():
-            log = AbsensiLog.objects.select_for_update().filter(guru=request.user, tanggal=today).first()
-            if log is None:
-                log = AbsensiLog(
-                    guru=request.user,
-                    tanggal=today,
-                    waktu_masuk=now,
-                    lat_masuk=user_lat if method == "qr_cetak" or lat_value else None,
-                    long_masuk=user_lng if method == "qr_cetak" or lng_value else None,
-                    foto_masuk=request.FILES.get("foto_selfie") if method == "qr_cetak" else None,
-                    metode_scan=method,
-                    status=status,
-                )
-                log.save()
-                event = "masuk"
-            elif log.waktu_pulang is None:
-                log.waktu_pulang = now
-                log.save(update_fields=("waktu_pulang",))
-                event = "pulang"
-            else:
-                return api_error("Presensi masuk dan pulang hari ini sudah tercatat.", 409)
+        _, event = record_attendance_event(
+            request.user,
+            method=method,
+            latitude=user_lat if method == "qr_cetak" or lat_value else None,
+            longitude=user_lng if method == "qr_cetak" or lng_value else None,
+            photo=request.FILES.get("foto_selfie") if method == "qr_cetak" else None,
+        )
+    except AttendanceScheduleError as exc:
+        return api_error(str(exc), exc.status)
     except IntegrityError:
         return api_error("Presensi hari ini sudah tercatat dari perangkat lain.", 409)
 
@@ -290,17 +272,13 @@ def kiosk_scan_api(request):
     guru = UserGuru.objects.filter(pk=claims.get("sub"), role="guru", is_active=True).first()
     if guru is None:
         return api_error("Akun guru tidak ditemukan atau tidak aktif.")
-    now = timezone.now()
-    today = timezone.localdate(now)
-    if AbsensiLog.objects.filter(guru=guru, tanggal=today).exists():
-        return api_error("Presensi hari ini sudah tercatat.", 409)
-    cutoff = datetime.strptime(getattr(settings, "ATTENDANCE_LATE_AFTER", "07:30"), "%H:%M").time()
-    status = "terlambat" if timezone.localtime(now).time() > cutoff else "hadir"
     try:
-        AbsensiLog.objects.create(guru=guru, tanggal=today, waktu_masuk=now, metode_scan="qr_guru", status=status)
+        _, event = record_attendance_event(guru, method="qr_guru")
+    except AttendanceScheduleError as exc:
+        return api_error(str(exc), exc.status)
     except IntegrityError:
         return api_error("Presensi hari ini sudah tercatat.", 409)
-    return JsonResponse({"status": "ok", "message": f"Presensi {guru.nama_lengkap} berhasil dicatat."})
+    return JsonResponse({"status": "ok", "event": event, "message": f"Presensi {event} {guru.nama_lengkap} berhasil dicatat."})
 
 
 @require_POST
@@ -313,28 +291,24 @@ def kiosk_manual_api(request):
     if guru is None:
         return api_error("NIP guru tidak ditemukan atau tidak aktif.")
     photo = request.FILES.get("foto_selfie")
+    today = timezone.localdate()
+    existing_log = AbsensiLog.objects.filter(guru=guru, tanggal=today).first()
+    if existing_log is None or photo:
+        try:
+            validate_selfie(photo)
+        except ValueError as exc:
+            return api_error(str(exc))
     try:
-        validate_selfie(photo)
-    except ValueError as exc:
-        return api_error(str(exc))
-    now = timezone.now()
-    today = timezone.localdate(now)
-    if AbsensiLog.objects.filter(guru=guru, tanggal=today).exists():
-        return api_error("Presensi hari ini sudah tercatat.", 409)
-    cutoff = datetime.strptime(getattr(settings, "ATTENDANCE_LATE_AFTER", "07:30"), "%H:%M").time()
-    status = "terlambat" if timezone.localtime(now).time() > cutoff else "hadir"
-    try:
-        AbsensiLog.objects.create(
-            guru=guru,
-            tanggal=today,
-            waktu_masuk=now,
-            foto_masuk=photo,
-            metode_scan="manual_kiosk",
-            status=status,
+        _, event = record_attendance_event(
+            guru,
+            method="manual_kiosk",
+            photo=photo if existing_log is None else None,
         )
+    except AttendanceScheduleError as exc:
+        return api_error(str(exc), exc.status)
     except IntegrityError:
         return api_error("Presensi hari ini sudah tercatat.", 409)
-    return JsonResponse({"status": "ok", "message": f"Presensi {guru.nama_lengkap} berhasil dicatat."})
+    return JsonResponse({"status": "ok", "event": event, "message": f"Presensi {event} {guru.nama_lengkap} berhasil dicatat."})
 
 
 @login_required

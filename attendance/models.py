@@ -18,6 +18,10 @@ class AbsensiLog(models.Model):
         ("terlambat", "Terlambat"),
         ("pulang_cepat", "Pulang Lebih Awal"),
     )
+    STATUS_PULANG_CHOICES = (
+        ("tepat_waktu", "Tidak Pulang Cepat"),
+        ("pulang_cepat", "Pulang Lebih Awal"),
+    )
 
     guru = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="absensilogs")
     tanggal = models.DateField(auto_now_add=True, db_index=True)
@@ -28,6 +32,7 @@ class AbsensiLog(models.Model):
     foto_masuk = models.ImageField(upload_to="attendance_photos/", storage=encrypted_private_storage, null=True, blank=True)
     metode_scan = models.CharField(max_length=20, choices=METODE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="hadir")
+    status_pulang = models.CharField(max_length=20, choices=STATUS_PULANG_CHOICES, blank=True)
     catatan = models.TextField(blank=True, null=True)
 
     class Meta:

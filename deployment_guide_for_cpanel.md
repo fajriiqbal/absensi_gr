@@ -40,7 +40,7 @@ Panduan ini untuk aplikasi **absensi_gr** pada domain `absen.mtssunankalijagatul
 | `DB_PORT` | Port PostgreSQL dari penyedia hosting (sering `5432`) |
 | `SECURE_SSL_REDIRECT` | `1` |
 
-`SCHOOL_NAME` dan `ATTENDANCE_LATE_AFTER` bersifat opsional. Buat database PostgreSQL dan berikan hak akses kepada user melalui **PostgreSQL Databases** cPanel. Nama database/user di cPanel dapat memiliki awalan akun hosting.
+`SCHOOL_NAME` dan `ATTENDANCE_LATE_AFTER` bersifat opsional. `ATTENDANCE_LATE_AFTER` hanya menjadi nilai awal batas terlambat ketika pengaturan waktu presensi pertama kali dibuat; setelah itu, atur jam masuk, batas terlambat, jam mulai pulang, jam pulang normal, dan jadwal pulang khusus per tanggal dari Dashboard Admin → Presensi → Pengaturan Waktu Presensi. Buat database PostgreSQL dan berikan hak akses kepada user melalui **PostgreSQL Databases** cPanel. Nama database/user di cPanel dapat memiliki awalan akun hosting.
 
 `DJANGO_SECRET_KEY` dan `MEDIA_ENCRYPTION_KEY` wajib ada saat `DJANGO_DEBUG=0`; jika tidak, aplikasi gagal mulai dan Passenger akan menampilkan HTTP 500. Simpan kedua kunci dengan aman. Jangan mengganti `MEDIA_ENCRYPTION_KEY` setelah ada foto atau dokumen tersimpan karena file lama tidak dapat didekripsi dengan kunci baru. Jangan unggah nilai rahasia ke Git atau kirimkannya melalui tiket/log publik.
 

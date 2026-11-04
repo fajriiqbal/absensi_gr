@@ -2,11 +2,12 @@ from django import forms
 from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.utils import timezone
 
 from attendance.forms import JadwalPelajaranIzinFormSetFactory
 from attendance.models import AbsensiLog, PengajuanIzin
 
-from .models import LokasiSekolah, TitikQRCetak
+from .models import JadwalWaktuPresensiKhusus, LokasiSekolah, PengaturanWaktuPresensi, TitikQRCetak
 
 
 UserGuru = get_user_model()
@@ -100,6 +101,7 @@ class AbsensiLogManagementForm(forms.ModelForm):
             "foto_masuk",
             "metode_scan",
             "status",
+            "status_pulang",
             "catatan",
         )
         widgets = {
@@ -111,10 +113,13 @@ class AbsensiLogManagementForm(forms.ModelForm):
             "foto_masuk": forms.FileInput(attrs={"class": "field"}),
             "metode_scan": forms.Select(attrs={"class": "field"}),
             "status": forms.Select(attrs={"class": "field"}),
+            "status_pulang": forms.Select(attrs={"class": "field"}),
             "catatan": forms.Textarea(attrs={"class": "field", "rows": 3}),
         }
         help_texts = {
             "foto_masuk": "Opsional. Berkas lama tetap tersimpan jika tidak ada foto baru yang diunggah.",
+            "status": "Status presensi masuk.",
+            "status_pulang": "Status pulang dikosongkan jika guru belum mencatat presensi pulang.",
         }
 
 
@@ -178,6 +183,43 @@ class TitikQRCetakManagementForm(forms.ModelForm):
             "label_titik": forms.TextInput(attrs={"class": "field"}),
             "is_active": forms.CheckboxInput(attrs={"class": "h-4 w-4"}),
         }
+
+
+class PengaturanWaktuPresensiForm(forms.ModelForm):
+    class Meta:
+        model = PengaturanWaktuPresensi
+        fields = ("jam_mulai_masuk", "batas_terlambat", "jam_mulai_pulang", "jam_pulang_normal")
+        widgets = {
+            "jam_mulai_masuk": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
+            "batas_terlambat": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
+            "jam_mulai_pulang": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
+            "jam_pulang_normal": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
+        }
+
+
+class JadwalWaktuPresensiKhususForm(forms.ModelForm):
+    class Meta:
+        model = JadwalWaktuPresensiKhusus
+        fields = ("tanggal", "jam_mulai_pulang", "jam_pulang", "keterangan")
+        widgets = {
+            "tanggal": forms.DateInput(attrs={"class": "field", "type": "date"}),
+            "jam_mulai_pulang": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
+            "jam_pulang": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
+            "keterangan": forms.TextInput(attrs={"class": "field", "maxlength": 200}),
+        }
+
+    def clean_tanggal(self):
+        tanggal = self.cleaned_data["tanggal"]
+        if tanggal < timezone.localdate():
+            raise forms.ValidationError("Jadwal pulang khusus hanya dapat dibuat untuk hari ini atau tanggal mendatang.")
+        return tanggal
+
+    def clean(self):
+        cleaned_data = super().clean()
+        checkout_start = cleaned_data.get("jam_mulai_pulang")
+        if checkout_start and checkout_start <= PengaturanWaktuPresensi.get_settings().batas_terlambat:
+            self.add_error("jam_mulai_pulang", "Presensi pulang khusus harus dibuka setelah batas waktu tepat waktu.")
+        return cleaned_data
 
 
 class GroupManagementForm(forms.ModelForm):

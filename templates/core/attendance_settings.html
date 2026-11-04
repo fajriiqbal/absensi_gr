@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Pengaturan Waktu Presensi | Dashboard Admin{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl px-4 py-6 sm:px-5 sm:py-10">
+  <header class="rounded-2xl border border-[#dbe1dc] bg-white p-5 shadow-sm sm:p-7">
+    <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Pengelolaan Presensi</p>
+    <h1 class="mt-2 text-2xl font-bold text-[#173f35] sm:text-3xl">Pengaturan waktu presensi</h1>
+    <p class="mt-2 max-w-3xl text-sm leading-6 text-[#63736b]">Atur rentang presensi masuk dan pulang. Pulang sebelum jam normal akan tercatat sebagai pulang cepat. Untuk hari sekolah dengan jam pulang lebih awal, buat jadwal khusus agar pencatatan mengikuti jam hari tersebut.</p>
+  </header>
+
+  <section class="mt-6 rounded-2xl border border-[#dbe1dc] bg-white p-4 shadow-sm sm:p-6">
+    <h2 class="text-lg font-bold text-[#173f35]">Jadwal normal sekolah</h2>
+    <p class="mt-1 text-sm leading-5 text-[#63736b]">Jam masuk setelah batas tepat waktu tetap dapat dicatat sampai jadwal pulang dimulai, tetapi statusnya terlambat.</p>
+    <form method="post" class="mt-5 space-y-5">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_settings">
+      {% if settings_form.non_field_errors %}<div class="rounded-xl border border-[#ecc5bb] bg-[#fff2ee] p-3 text-sm text-[#8d3829]" role="alert">{{ settings_form.non_field_errors }}</div>{% endif %}
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% for field in settings_form %}
+          <label class="block text-sm font-semibold text-[#34483f]" for="{{ field.id_for_label }}">
+            <span class="mb-1.5 block">{{ field.label }}</span>
+            {{ field }}
+            {% if field.help_text %}<span class="mt-1 block text-xs font-normal leading-5 text-[#63736b]">{{ field.help_text }}</span>{% endif %}
+            {% for error in field.errors %}<span class="mt-1 block text-xs font-normal text-[#a34431]">{{ error }}</span>{% endfor %}
+          </label>
+        {% endfor %}
+      </div>
+      <div class="rounded-xl bg-[#f8faf8] p-3 text-xs leading-5 text-[#63736b]">
+        Guru dapat mencatat masuk mulai dari jam buka sampai sebelum jam pulang. Presensi pulang dibuka sesuai waktu yang ditetapkan. Waktu pulang aktual tetap tersimpan; sebelum jam pulang terjadwal, status pulang menjadi pulang cepat.
+      </div>
+      <button class="button button-primary min-h-11 w-full rounded-xl sm:w-auto" type="submit">Simpan jadwal normal</button>
+    </form>
+  </section>
+
+  <section class="mt-8" aria-labelledby="special-schedule-heading">
+    <div class="mb-3">
+      <h2 id="special-schedule-heading" class="text-lg font-bold text-[#173f35]">Pulang lebih awal pada tanggal tertentu</h2>
+      <p class="mt-1 text-sm leading-5 text-[#63736b]">Jadwal ini hanya berlaku pada tanggal yang dipilih dan tidak mengubah jadwal normal. Guru yang pulang pada atau setelah jam khusus tidak ditandai pulang cepat.</p>
+    </div>
+
+    <form method="post" class="rounded-2xl border border-[#dbe1dc] bg-white p-4 shadow-sm sm:p-6">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_override">
+      {% if editing_override %}<input type="hidden" name="override_id" value="{{ editing_override.pk }}">{% endif %}
+      <h3 class="font-semibold text-[#173f35]">{% if editing_override %}Ubah jadwal tanggal {{ editing_override.tanggal|date:"d M Y" }}{% else %}Tambah jadwal pulang khusus{% endif %}</h3>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        {% for field in override_form %}
+          <label class="block text-sm font-semibold text-[#34483f] {% if field.name == 'keterangan' %}sm:col-span-2{% endif %}" for="{{ field.id_for_label }}">
+            <span class="mb-1.5 block">{{ field.label }}</span>
+            {{ field }}
+            {% for error in field.errors %}<span class="mt-1 block text-xs font-normal text-[#a34431]">{{ error }}</span>{% endfor %}
+          </label>
+        {% endfor %}
+      </div>
+      <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+        <button class="button button-primary min-h-11 rounded-xl" type="submit">{% if editing_override %}Simpan perubahan{% else %}Tambah jadwal khusus{% endif %}</button>
+        {% if editing_override %}<a class="button button-muted min-h-11 rounded-xl" href="{% url 'attendance-settings' %}">Batal mengubah</a>{% endif %}
+      </div>
+    </form>
+
+    <div class="mt-4 space-y-3">
+      {% for override in overrides %}
+        <article class="rounded-2xl border border-[#dbe1dc] bg-white p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4 sm:p-5">
+          <div class="min-w-0">
+            <h3 class="font-semibold text-[#173f35]">{{ override.tanggal|date:"l, d M Y" }}</h3>
+            <p class="mt-1 text-sm text-[#52625b]">Presensi pulang dibuka {{ override.jam_mulai_pulang|time:"H:i" }} · Jam pulang khusus {{ override.jam_pulang|time:"H:i" }}</p>
+            <p class="mt-1 break-words text-sm text-[#63736b]">{{ override.keterangan }}</p>
+          </div>
+          <div class="mt-4 flex gap-2 sm:mt-0 sm:shrink-0">
+            <a class="button button-muted min-h-10" href="{% url 'attendance-settings' %}?ubah={{ override.pk }}">Ubah</a>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_override">
+              <input type="hidden" name="override_id" value="{{ override.pk }}">
+              <button class="button min-h-10 border border-[#ead0ca] bg-[#fff5f2] text-[#963d2f]" type="submit">Hapus</button>
+            </form>
+          </div>
+        </article>
+      {% empty %}
+        <div class="rounded-2xl border border-dashed border-[#cfd7d2] bg-white px-5 py-8 text-center text-sm text-[#63736b]">Belum ada jadwal pulang khusus.</div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

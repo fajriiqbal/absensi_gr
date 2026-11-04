@@ -5,6 +5,7 @@ from . import management_views
 
 urlpatterns = [
 	path("admin/dashboard", views.admin_dashboard, name="admin-dashboard"),
+	path("admin/pengaturan-waktu-presensi", views.attendance_settings, name="attendance-settings"),
 	path("admin/notifikasi-perizinan", views.leave_notifications, name="leave-notifications"),
 	path("admin/pengaturan-whatsapp", views.whatsapp_settings, name="whatsapp-settings"),
 	path("admin/manajemen/akun", management_views.manage_users, name="admin-users"),

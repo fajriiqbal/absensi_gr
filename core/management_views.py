@@ -156,6 +156,7 @@ def manage_attendance(request):
         describe=lambda log: (
             f"{log.tanggal:%d-%m-%Y}",
             log.get_status_display(),
+            log.get_status_pulang_display() if log.status_pulang else "Belum pulang",
             log.get_metode_scan_display(),
         ),
     )

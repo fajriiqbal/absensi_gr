@@ -93,11 +93,12 @@
             <a class="admin-sidebar-link" href="{% url 'admin-groups' %}" {% if request.resolver_match.url_name == "admin-groups" or request.resolver_match.url_name == "admin-group-add" or request.resolver_match.url_name == "admin-group-edit" %}aria-current="page"{% endif %}>Grup dan Izin</a>
           </div>
         </details>
-        <details class="admin-sidebar-group" {% if request.resolver_match.url_name == "admin-attendance" or request.resolver_match.url_name == "admin-attendance-add" or request.resolver_match.url_name == "admin-attendance-edit" or request.resolver_match.url_name == "attendance-report" %}open{% endif %}>
+        <details class="admin-sidebar-group" {% if request.resolver_match.url_name == "admin-attendance" or request.resolver_match.url_name == "admin-attendance-add" or request.resolver_match.url_name == "admin-attendance-edit" or request.resolver_match.url_name == "attendance-report" or request.resolver_match.url_name == "attendance-settings" %}open{% endif %}>
           <summary>Presensi</summary>
           <div class="admin-sidebar-submenu">
             <a class="admin-sidebar-link" href="{% url 'admin-attendance' %}" {% if request.resolver_match.url_name == "admin-attendance" or request.resolver_match.url_name == "admin-attendance-add" or request.resolver_match.url_name == "admin-attendance-edit" %}aria-current="page"{% endif %}>Data Presensi</a>
             <a class="admin-sidebar-link" href="{% url 'attendance-report' %}" {% if request.resolver_match.url_name == "attendance-report" %}aria-current="page"{% endif %}>Rekap Absensi</a>
+            <a class="admin-sidebar-link" href="{% url 'attendance-settings' %}" {% if request.resolver_match.url_name == "attendance-settings" %}aria-current="page"{% endif %}>Pengaturan Waktu Presensi</a>
           </div>
         </details>
         <details class="admin-sidebar-group" {% if request.resolver_match.url_name == "admin-leaves" or request.resolver_match.url_name == "admin-leave-add" or request.resolver_match.url_name == "admin-leave-edit" or request.resolver_match.url_name == "leave-notifications" or request.resolver_match.url_name == "whatsapp-settings" %}open{% endif %}>
@@ -142,11 +143,12 @@
               <a class="admin-sidebar-link" href="{% url 'admin-groups' %}">Grup dan Izin</a>
             </div>
           </details>
-          <details class="admin-sidebar-group" {% if request.resolver_match.url_name == "admin-attendance" or request.resolver_match.url_name == "admin-attendance-add" or request.resolver_match.url_name == "admin-attendance-edit" or request.resolver_match.url_name == "attendance-report" %}open{% endif %}>
+          <details class="admin-sidebar-group" {% if request.resolver_match.url_name == "admin-attendance" or request.resolver_match.url_name == "admin-attendance-add" or request.resolver_match.url_name == "admin-attendance-edit" or request.resolver_match.url_name == "attendance-report" or request.resolver_match.url_name == "attendance-settings" %}open{% endif %}>
             <summary>Presensi</summary>
             <div class="admin-sidebar-submenu">
               <a class="admin-sidebar-link" href="{% url 'admin-attendance' %}">Data Presensi</a>
               <a class="admin-sidebar-link" href="{% url 'attendance-report' %}">Rekap Absensi</a>
+              <a class="admin-sidebar-link" href="{% url 'attendance-settings' %}">Pengaturan Waktu Presensi</a>
             </div>
           </details>
           <details class="admin-sidebar-group" {% if request.resolver_match.url_name == "admin-leaves" or request.resolver_match.url_name == "admin-leave-add" or request.resolver_match.url_name == "admin-leave-edit" or request.resolver_match.url_name == "leave-notifications" or request.resolver_match.url_name == "whatsapp-settings" %}open{% endif %}>

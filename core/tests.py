@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import time, timedelta
 from io import BytesIO
 import json
 from pathlib import Path
@@ -16,7 +16,7 @@ from django.utils import timezone
 from attendance.models import AbsensiLog, PengajuanIzin
 from accounts.models import UserGuru
 from core.geo import calculate_haversine, parse_coordinates
-from core.models import LokasiSekolah, TitikQRCetak, WhatsAppSettings
+from core.models import JadwalWaktuPresensiKhusus, LokasiSekolah, PengaturanWaktuPresensi, TitikQRCetak, WhatsAppSettings
 from core.qr_engine import generate_dynamic_qr_token, verify_dynamic_qr_token
 from core.qr_generator import generate_printable_qr_pdf
 from core.whatsapp_links import build_leave_notification_link
@@ -55,6 +55,69 @@ class QREngineTests(SimpleTestCase):
 
 
 class AdminDashboardTests(TestCase):
+    def test_admin_can_configure_attendance_times_and_date_specific_early_departure(self):
+        admin_user = UserGuru.objects.create_superuser(
+            username="schedule-admin",
+            nip="900099",
+            nama_lengkap="Admin Jadwal",
+            email="schedule-admin@example.test",
+            password="ScheduleAdmin!734",
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.get(reverse("attendance-settings"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="13:40"')
+
+        response = self.client.post(reverse("attendance-settings"), {
+            "action": "save_settings",
+            "jam_mulai_masuk": "05:00",
+            "batas_terlambat": "07:30",
+            "jam_mulai_pulang": "14:00",
+            "jam_pulang_normal": "13:40",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Jam pulang normal harus setelah waktu presensi pulang dibuka.")
+        self.assertEqual(PengaturanWaktuPresensi.objects.get(pk=1).jam_pulang_normal, time(13, 40))
+
+        response = self.client.post(reverse("attendance-settings"), {
+            "action": "save_settings",
+            "jam_mulai_masuk": "05:00",
+            "batas_terlambat": "07:30",
+            "jam_mulai_pulang": "12:00",
+            "jam_pulang_normal": "13:40",
+        })
+        self.assertRedirects(response, reverse("attendance-settings"))
+
+        special_date = timezone.localdate() + timedelta(days=1)
+        response = self.client.post(reverse("attendance-settings"), {
+            "action": "save_override",
+            "tanggal": special_date.isoformat(),
+            "jam_mulai_pulang": "11:30",
+            "jam_pulang": "12:00",
+            "keterangan": "Kegiatan sekolah selesai lebih awal",
+        })
+        self.assertRedirects(response, reverse("attendance-settings"))
+        override = JadwalWaktuPresensiKhusus.objects.get(tanggal=special_date)
+        self.assertEqual(override.jam_pulang, time(12, 0))
+
+        response = self.client.post(reverse("attendance-settings"), {
+            "action": "delete_override",
+            "override_id": override.pk,
+        })
+        self.assertRedirects(response, reverse("attendance-settings"))
+        self.assertFalse(JadwalWaktuPresensiKhusus.objects.filter(pk=override.pk).exists())
+
+        teacher = UserGuru.objects.create_user(
+            username="schedule-teacher",
+            nip="910099",
+            nama_lengkap="Guru",
+            email="schedule-teacher@example.test",
+            password="ScheduleTeacher!734",
+        )
+        self.client.force_login(teacher)
+        self.assertEqual(self.client.get(reverse("attendance-settings")).status_code, 404)
+
     def test_admin_dashboard_is_available_only_to_admin(self):
         admin_user = UserGuru.objects.create_superuser(
             username="dashboard-admin",

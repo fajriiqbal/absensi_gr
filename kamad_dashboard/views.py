@@ -70,6 +70,7 @@ def live_feed(request):
         "waktu_pulang": timezone.localtime(log.waktu_pulang).strftime("%H:%M") if log.waktu_pulang else "-",
         "metode": log.get_metode_scan_display(),
         "status": log.get_status_display(),
+        "status_pulang": log.get_status_pulang_display() if log.status_pulang else "-",
     } for log in logs]})
 
 

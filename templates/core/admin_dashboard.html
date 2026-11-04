@@ -30,10 +30,11 @@
       </article>
       <article class="border border-[#dbe1dc] bg-white p-5">
         <h3 class="font-semibold text-[#173f35]">Presensi</h3>
-        <p class="mt-1 text-sm text-[#63736b]">Kelola catatan presensi dan tinjau rekap.</p>
+        <p class="mt-1 text-sm text-[#63736b]">Kelola catatan, waktu, jadwal pulang khusus, dan rekap presensi.</p>
         <nav class="mt-4 flex flex-wrap gap-2" aria-label="Menu presensi">
           <a class="button button-muted" href="{% url 'admin-attendance' %}">Data presensi</a>
           <a class="button button-muted" href="{% url 'attendance-report' %}">Rekap bulanan</a>
+          <a class="button button-muted" href="{% url 'attendance-settings' %}">Pengaturan waktu</a>
         </nav>
       </article>
       <article class="border border-[#dbe1dc] bg-white p-5">
