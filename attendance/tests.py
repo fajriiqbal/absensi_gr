@@ -38,6 +38,8 @@ class AttendanceScanTests(TestCase):
         self.assertContains(response, "attendance-scan-start")
         self.assertContains(response, "selfie tidak diperlukan")
         self.assertNotContains(response, 'id="selfie"')
+        self.assertContains(response, 'id="glass-toast-region"')
+        self.assertContains(response, "window.showGlassNotification(this.result, this.success ? 'success' : 'error')")
 
     def test_tv_qr_records_arrival_and_departure_once(self):
         payload = generate_dynamic_qr_token()
@@ -139,7 +141,11 @@ class LeaveRequestWorkflowTests(TestCase):
             "jadwal_pelajaran-0-keterangan_kelas": "VII-A",
             "jadwal_pelajaran-0-guru_lukiran": schedule_buddy.pk,
         })
-        self.assertRedirects(response, reverse("leave-requests"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("leave-requests"))
+        response = self.client.get(response["Location"])
+        self.assertContains(response, "Pengajuan izin berhasil dikirim untuk persetujuan.")
+        self.assertContains(response, 'data-message-level="success"')
         leave = PengajuanIzin.objects.get(guru=self.teacher)
         self.assertEqual(leave.status_approval, "pending")
         schedule = leave.jadwal_pelajaran.get()
@@ -183,6 +189,7 @@ class LeaveRequestWorkflowTests(TestCase):
             "jadwal_pelajaran-MAX_NUM_FORMS": "20",
         })
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pengajuan izin belum terkirim. Periksa kembali data yang wajib diisi.")
         self.assertEqual(PengajuanIzin.objects.filter(guru=self.teacher).count(), 0)
 
     def test_schedule_requires_matching_day_and_leave_date_range(self):

@@ -99,6 +99,7 @@ def leave_requests(request):
     if request.user.role != "guru":
         return render(request, "403.html", status=403)
     leave_instance = PengajuanIzin(guru=request.user)
+    submission_error = False
     if request.method == "POST":
         form = PengajuanIzinForm(request.POST, request.FILES)
         schedule_formset = JadwalPelajaranIzinFormSetFactory(request.POST, instance=leave_instance)
@@ -116,12 +117,14 @@ def leave_requests(request):
                 schedule_formset.save()
             messages.success(request, "Pengajuan izin berhasil dikirim untuk persetujuan.")
             return redirect("leave-requests")
+        submission_error = True
     else:
         form = PengajuanIzinForm()
         schedule_formset = JadwalPelajaranIzinFormSetFactory(instance=leave_instance)
     return render(request, "attendance/leave_requests.html", {
         "form": form,
         "schedule_formset": schedule_formset,
+        "submission_error": submission_error,
         "requests": PengajuanIzin.objects.filter(guru=request.user)
         .select_related("approved_by")
         .prefetch_related("jadwal_pelajaran__guru_lukiran"),

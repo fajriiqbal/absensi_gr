@@ -296,6 +296,16 @@
 
 {% block scripts %}
 <script>
+document.querySelectorAll('[data-flash-message][data-message-level~="success"]').forEach(message => {
+    window.showGlassNotification(message.textContent.trim(), 'success');
+    const container = message.closest('[data-flash-container]');
+    message.remove();
+    if (container && !container.querySelector('[data-flash-message]')) container.remove();
+});
+{% if submission_error %}
+window.showGlassNotification('Pengajuan izin belum terkirim. Periksa kembali data yang wajib diisi.', 'error');
+{% endif %}
+
 const schedulePrefix = '{{ schedule_formset.prefix }}';
 const scheduleList = document.querySelector('#schedule-forms');
 const scheduleTotal = document.querySelector(`#id_${schedulePrefix}-TOTAL_FORMS`);

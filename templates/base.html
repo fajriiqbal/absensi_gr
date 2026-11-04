@@ -30,11 +30,21 @@
       .mobile-scan-button svg { width: 25px; height: 25px; stroke-width: 2; }
       .mobile-scan-item:active .mobile-scan-button { transform: scale(.96); }
     }
+    .glass-toast-region { position: fixed; z-index: 100; top: calc(1rem + env(safe-area-inset-top)); left: 50%; display: flex; width: min(28rem, calc(100vw - 2rem)); flex-direction: column; gap: .65rem; transform: translateX(-50%); pointer-events: none; }
+    .glass-toast { display: flex; align-items: flex-start; gap: .75rem; padding: .9rem 1rem; border: 1px solid rgba(255, 255, 255, .72); border-radius: 1.15rem; background: rgba(255, 255, 255, .78); box-shadow: 0 16px 48px rgba(27, 55, 45, .2), inset 0 1px rgba(255, 255, 255, .9); color: #173f35; backdrop-filter: blur(24px) saturate(170%); -webkit-backdrop-filter: blur(24px) saturate(170%); opacity: 0; transform: translateY(-10px) scale(.98); transition: opacity .22s ease, transform .22s ease; pointer-events: auto; }
+    .glass-toast.is-visible { opacity: 1; transform: translateY(0) scale(1); }
+    .glass-toast-icon { display: grid; width: 2rem; height: 2rem; flex: none; place-items: center; border-radius: 999px; background: rgba(23, 99, 76, .12); color: #17634c; }
+    .glass-toast--error .glass-toast-icon { background: rgba(163, 68, 49, .12); color: #a34431; }
+    .glass-toast-close { margin: -.25rem -.35rem 0 auto; padding: .25rem .4rem; border-radius: 999px; color: #63736b; font-size: 1.25rem; line-height: 1; }
+    .glass-toast-close:hover { background: rgba(23, 63, 53, .08); }
+    @media (min-width: 640px) { .glass-toast-region { right: 1.5rem; left: auto; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .glass-toast { transition: none; } }
     [x-cloak] { display: none !important; }
   </style>
   {% block head %}{% endblock %}
 </head>
 <body class="min-h-screen antialiased">
+  <div id="glass-toast-region" class="glass-toast-region" aria-live="polite" aria-atomic="false"></div>
   {% if request.user.is_authenticated and not hide_navigation %}
   <header class="sticky top-0 z-40 border-b border-[#dbe1dc] bg-white">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-5">
@@ -53,8 +63,46 @@
     </div>
   </header>
   {% endif %}
-  {% if messages %}<div class="mx-auto max-w-7xl px-5 pt-4">{% for message in messages %}<p class="mb-2 rounded border border-[#b9d4c6] bg-[#e7f2eb] px-4 py-3 text-sm">{{ message }}</p>{% endfor %}</div>{% endif %}
+  {% if messages %}<div data-flash-container class="mx-auto max-w-7xl px-5 pt-4">{% for message in messages %}<p data-flash-message data-message-level="{{ message.tags }}" class="mb-2 rounded border border-[#b9d4c6] bg-[#e7f2eb] px-4 py-3 text-sm">{{ message }}</p>{% endfor %}</div>{% endif %}
   <main class="{% if request.user.is_authenticated and not hide_navigation %}mobile-content{% endif %}">{% block content %}{% endblock %}</main>
+  <script>
+    window.showGlassNotification = (message, type = 'success') => {
+      const region = document.querySelector('#glass-toast-region');
+      if (!region) return;
+
+      const toast = document.createElement('div');
+      const isError = type === 'error';
+      toast.className = `glass-toast${isError ? ' glass-toast--error' : ''}`;
+      toast.setAttribute('role', isError ? 'alert' : 'status');
+
+      const icon = document.createElement('span');
+      icon.className = 'glass-toast-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = isError
+        ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4m0 4h.01M10.3 3.9 2.8 17.5A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.5L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 12 4 4L19 6"/></svg>';
+
+      const text = document.createElement('p');
+      text.className = 'min-w-0 flex-1 text-sm font-medium leading-5';
+      text.textContent = message;
+
+      const close = document.createElement('button');
+      close.className = 'glass-toast-close';
+      close.type = 'button';
+      close.setAttribute('aria-label', 'Tutup notifikasi');
+      close.textContent = '×';
+
+      const dismiss = () => {
+        toast.classList.remove('is-visible');
+        window.setTimeout(() => toast.remove(), 240);
+      };
+      close.addEventListener('click', dismiss);
+      toast.append(icon, text, close);
+      region.append(toast);
+      window.requestAnimationFrame(() => toast.classList.add('is-visible'));
+      window.setTimeout(dismiss, 5000);
+    };
+  </script>
   {% block scripts %}{% endblock %}
   {% if request.user.is_authenticated and not hide_navigation %}
   <nav class="mobile-bottom-nav md:hidden" aria-label="Navigasi utama">
