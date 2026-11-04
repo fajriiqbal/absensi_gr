@@ -16,7 +16,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Atur `DJANGO_SECRET_KEY` dan `MEDIA_ENCRYPTION_KEY` pada environment sebelum deployment. Buat media key dengan `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` dan simpan di secret manager; jangan menggantinya setelah ada file terenkripsi. Tambahkan lokasi sekolah melalui `/django-admin/` sebelum QR poster digunakan. Akun admin/kamad/guru dapat dibuat dari admin Django dan diberi role yang sesuai.
+Atur `DJANGO_SECRET_KEY` dan `MEDIA_ENCRYPTION_KEY` pada environment sebelum deployment. Buat media key dengan `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` dan simpan di secret manager; jangan menggantinya setelah ada file terenkripsi. Tambahkan lokasi sekolah melalui Dashboard Admin sebelum QR poster digunakan. Akun admin/kamad/guru dapat dibuat dan dikelola dari Dashboard Admin.
 
 ## Deployment cPanel
 
@@ -29,6 +29,12 @@ Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python
 - Login: `/login/`
 - Setup PWA: `/guru/pwa-setup/`
 - Dashboard Admin: `/admin/dashboard`
+- Kelola akun dan role: `/admin/manajemen/akun`
+- Kelola grup dan izin akses: `/admin/manajemen/grup`
+- Kelola data presensi: `/admin/manajemen/presensi`
+- Kelola seluruh pengajuan izin: `/admin/manajemen/perizinan`
+- Kelola lokasi sekolah: `/admin/manajemen/lokasi`
+- Kelola titik QR cetak: `/admin/manajemen/titik-qr`
 - Antrean notifikasi izin (admin/operator): `/admin/notifikasi-perizinan`
 - Pengaturan nomor WhatsApp Kamad: `/admin/pengaturan-whatsapp`
 - Rekap absensi bulanan per guru (Excel): `/admin/rekap-absensi/`
@@ -39,9 +45,8 @@ Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python
 - Pengajuan dan riwayat izin guru: `/guru/perijinan/`
 - Dashboard Kamad: `/kamad/dashboard`
 - Histori perizinan bulanan Kamad (Excel): `/kamad/rekap-perizinan/`
-- Admin Django: `/django-admin/`
 
-Gunakan akun dengan role `admin` untuk Dashboard Admin dan panel data. Petugas dengan akses staff dapat membuka `/admin/notifikasi-perizinan` dan `/admin/pengaturan-whatsapp` untuk mengelola notifikasi, serta `/kiosk/scan` untuk memindai QR guru; akses staff tidak memberikan akses ke Admin Django. Akun `guru` hanya mendapat halaman scan/QR kiosk; akun `kamad` mendapat dashboard monitoring dan approval. Monitor TV dapat dibuka tanpa login.
+Gunakan akun dengan role `admin` untuk Dashboard Admin dan seluruh CRUD akun, grup, presensi, perizinan, lokasi, dan titik QR. Petugas dengan akses staff dapat membuka `/admin/notifikasi-perizinan` dan `/admin/pengaturan-whatsapp` untuk mengelola notifikasi, serta `/kiosk/scan` untuk memindai QR guru. Akun `guru` hanya mendapat halaman scan/QR kiosk; akun `kamad` mendapat dashboard monitoring dan approval. Monitor TV dapat dibuka tanpa login.
 
 ### Notifikasi izin melalui WhatsApp
 

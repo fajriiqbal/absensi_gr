@@ -1,11 +1,37 @@
 from django.urls import path
 
 from . import views
+from . import management_views
 
 urlpatterns = [
 	path("admin/dashboard", views.admin_dashboard, name="admin-dashboard"),
 	path("admin/notifikasi-perizinan", views.leave_notifications, name="leave-notifications"),
 	path("admin/pengaturan-whatsapp", views.whatsapp_settings, name="whatsapp-settings"),
+	path("admin/manajemen/akun", management_views.manage_users, name="admin-users"),
+	path("admin/manajemen/grup", management_views.manage_groups, name="admin-groups"),
+	path("admin/manajemen/akun/tambah", management_views.user_add, name="admin-user-add"),
+	path("admin/manajemen/akun/<int:pk>/ubah", management_views.user_edit, name="admin-user-edit"),
+	path("admin/manajemen/akun/<int:pk>/hapus", management_views.delete_confirmation, {"model_name": "user"}, name="admin-user-delete-confirm"),
+	path("admin/manajemen/grup/tambah", management_views.group_add, name="admin-group-add"),
+	path("admin/manajemen/grup/<int:pk>/ubah", management_views.group_edit, name="admin-group-edit"),
+	path("admin/manajemen/grup/<int:pk>/hapus", management_views.delete_confirmation, {"model_name": "group"}, name="admin-group-delete-confirm"),
+	path("admin/manajemen/presensi", management_views.manage_attendance, name="admin-attendance"),
+	path("admin/manajemen/presensi/tambah", management_views.attendance_add, name="admin-attendance-add"),
+	path("admin/manajemen/presensi/<int:pk>/ubah", management_views.attendance_edit, name="admin-attendance-edit"),
+	path("admin/manajemen/presensi/<int:pk>/hapus", management_views.delete_confirmation, {"model_name": "attendance"}, name="admin-attendance-delete-confirm"),
+	path("admin/manajemen/perizinan", management_views.manage_leaves, name="admin-leaves"),
+	path("admin/manajemen/perizinan/tambah", management_views.leave_add, name="admin-leave-add"),
+	path("admin/manajemen/perizinan/<int:pk>/ubah", management_views.leave_edit, name="admin-leave-edit"),
+	path("admin/manajemen/perizinan/<int:pk>/hapus", management_views.delete_confirmation, {"model_name": "leave"}, name="admin-leave-delete-confirm"),
+	path("admin/manajemen/lokasi", management_views.manage_locations, name="admin-locations"),
+	path("admin/manajemen/lokasi/tambah", management_views.location_add, name="admin-location-add"),
+	path("admin/manajemen/lokasi/<int:pk>/ubah", management_views.location_edit, name="admin-location-edit"),
+	path("admin/manajemen/lokasi/<int:pk>/hapus", management_views.delete_confirmation, {"model_name": "location"}, name="admin-location-delete-confirm"),
+	path("admin/manajemen/titik-qr", management_views.manage_qr_points, name="admin-qr-points"),
+	path("admin/manajemen/titik-qr/tambah", management_views.qr_point_add, name="admin-qr-point-add"),
+	path("admin/manajemen/titik-qr/<int:pk>/ubah", management_views.qr_point_edit, name="admin-qr-point-edit"),
+	path("admin/manajemen/titik-qr/<int:pk>/hapus", management_views.delete_confirmation, {"model_name": "qr-point"}, name="admin-qr-point-delete-confirm"),
+	path("admin/manajemen/hapus/<str:model_name>/<int:pk>", management_views.delete_record, name="admin-record-delete"),
 	path("admin/cetak-qr", views.qr_points, name="qr-points"),
 	path("admin/cetak-qr/<int:pk>/pdf", views.qr_pdf, name="qr-pdf"),
 	path("display/qr-sekolah", views.school_qr_display, name="school-qr-display"),

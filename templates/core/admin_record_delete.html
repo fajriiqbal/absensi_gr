@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Hapus {{ record_label }} | Dashboard Admin{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl px-5 py-8 sm:py-10">
+  <div class="border border-[#ead0ca] bg-white p-6 sm:p-8">
+    <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Konfirmasi</p>
+    <h1 class="mt-2 text-2xl font-semibold text-[#173f35]">Hapus {{ record_label }}?</h1>
+    <p class="mt-3 break-words text-sm text-[#52625b]">Data yang akan dihapus: <strong>{{ record }}</strong>. Tindakan ini tidak dapat dibatalkan.</p>
+    <form method="post" action="{{ delete_url }}" class="mt-6 flex flex-wrap gap-3">
+      {% csrf_token %}
+      <button class="button bg-[#963d2f] text-white hover:bg-[#7e3025]" type="submit">Ya, hapus</button>
+      <a class="button button-muted" href="{{ list_url }}">Batal</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

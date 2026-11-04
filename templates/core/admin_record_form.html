@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | Dashboard Admin{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl px-5 py-8 sm:py-10">
+  <header class="border-b border-[#dbe1dc] pb-5">
+    <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Manajemen Dashboard</p>
+    <h1 class="mt-2 text-2xl font-semibold text-[#173f35]">{{ title }}</h1>
+  </header>
+
+  <form method="post" enctype="multipart/form-data" class="mt-6 space-y-5 border-y border-[#dbe1dc] bg-white p-5 sm:p-7">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="rounded bg-[#fff5f2] p-3 text-sm text-[#963d2f]" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <div>
+        {% if field.field.widget.input_type == "checkbox" %}
+          <label class="flex items-center gap-2 text-sm font-semibold text-[#173f35]" for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>
+        {% else %}
+          <label class="mb-1 block text-sm font-semibold text-[#173f35]" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+        {% endif %}
+        {% if field.help_text %}<p class="mt-1 text-xs text-[#63736b]">{{ field.help_text }}</p>{% endif %}
+        {% for error in field.errors %}<p class="mt-1 text-xs text-[#a34431]" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+
+    {% if formset %}
+      <section class="space-y-4 border-t border-[#dbe1dc] pt-5">
+        <div>
+          <h2 class="text-lg font-semibold text-[#173f35]">Rincian jadwal pengganti</h2>
+          <p class="mt-1 text-sm text-[#63736b]">Isi jadwal pelajaran yang perlu dialihkan. Pastikan tanggal berada dalam rentang izin.</p>
+        </div>
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}<div class="rounded bg-[#fff5f2] p-3 text-sm text-[#963d2f]" role="alert">{{ formset.non_form_errors }}</div>{% endif %}
+        <div id="schedule-form-list" class="space-y-4">
+        {% for schedule_form in formset %}
+          <fieldset class="schedule-form space-y-3 border border-[#dbe1dc] p-4">
+            <legend class="px-2 text-sm font-semibold text-[#173f35]">Jadwal {{ forloop.counter }}</legend>
+            {% for hidden in schedule_form.hidden_fields %}{{ hidden }}{% endfor %}
+            {% if schedule_form.non_field_errors %}<div class="text-sm text-[#a34431]" role="alert">{{ schedule_form.non_field_errors }}</div>{% endif %}
+            <div class="grid gap-3 sm:grid-cols-2">
+              {% for field in schedule_form.visible_fields %}
+                <div>
+                  {% if field.field.widget.input_type == "checkbox" %}
+                    <label class="flex items-center gap-2 text-sm font-semibold text-[#173f35]" for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>
+                  {% else %}
+                    <label class="mb-1 block text-sm font-semibold text-[#173f35]" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                  {% endif %}
+                  {% for error in field.errors %}<p class="mt-1 text-xs text-[#a34431]" role="alert">{{ error }}</p>{% endfor %}
+                </div>
+              {% endfor %}
+            </div>
+          </fieldset>
+        {% endfor %}
+        </div>
+        <template id="schedule-empty-form">
+          <fieldset class="schedule-form space-y-3 border border-[#dbe1dc] p-4">
+            <legend class="px-2 text-sm font-semibold text-[#173f35]">Jadwal baru</legend>
+            {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <div class="grid gap-3 sm:grid-cols-2">
+              {% for field in formset.empty_form.visible_fields %}
+                <div>
+                  {% if field.field.widget.input_type == "checkbox" %}
+                    <label class="flex items-center gap-2 text-sm font-semibold text-[#173f35]" for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>
+                  {% else %}
+                    <label class="mb-1 block text-sm font-semibold text-[#173f35]" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          </fieldset>
+        </template>
+        <button id="add-schedule-form" class="button button-muted" type="button">Tambah jadwal</button>
+      </section>
+    {% endif %}
+
+    <div class="flex flex-wrap gap-3 border-t border-[#dbe1dc] pt-5">
+      <button class="button button-primary" type="submit">Simpan</button>
+      <a class="button button-muted" href="{{ list_url }}">Batal</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if formset %}
+<script>
+  (() => {
+    const addButton = document.querySelector('#add-schedule-form');
+    const list = document.querySelector('#schedule-form-list');
+    const template = document.querySelector('#schedule-empty-form');
+    const totalForms = document.querySelector('#id_jadwal_pelajaran-TOTAL_FORMS');
+    const maxForms = Number(document.querySelector('#id_jadwal_pelajaran-MAX_NUM_FORMS')?.value || 20);
+    if (!addButton || !list || !template || !totalForms) return;
+
+    addButton.addEventListener('click', () => {
+      const index = Number(totalForms.value);
+      if (index >= maxForms) return;
+      const fragment = template.content.cloneNode(true);
+      fragment.querySelectorAll('[name], [id], label[for]').forEach(element => {
+        for (const attribute of ['name', 'id', 'for']) {
+          if (element.hasAttribute(attribute)) {
+            element.setAttribute(attribute, element.getAttribute(attribute).replaceAll('__prefix__', index));
+          }
+        }
+      });
+      list.append(fragment);
+      totalForms.value = String(index + 1);
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}

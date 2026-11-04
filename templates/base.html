@@ -81,10 +81,15 @@
         <a class="admin-sidebar-link" href="{% url 'admin-dashboard' %}" {% if request.resolver_match.url_name == "admin-dashboard" %}aria-current="page"{% endif %}>Dashboard</a>
         <a class="admin-sidebar-link" href="{% url 'kiosk-scan-page' %}" {% if request.resolver_match.url_name == "kiosk-scan-page" %}aria-current="page"{% endif %}>Pindai QR Guru</a>
         <a class="admin-sidebar-link" href="{% url 'attendance-report' %}" {% if request.resolver_match.url_name == "attendance-report" %}aria-current="page"{% endif %}>Rekap Absensi</a>
-        <a class="admin-sidebar-link" href="{% url 'qr-points' %}" {% if request.resolver_match.url_name == "qr-points" or request.resolver_match.url_name == "qr-pdf" %}aria-current="page"{% endif %}>Kelola dan Cetak QR</a>
+        <a class="admin-sidebar-link" href="{% url 'admin-qr-points' %}" {% if request.resolver_match.url_name == "admin-qr-points" or request.resolver_match.url_name == "admin-qr-point-add" or request.resolver_match.url_name == "admin-qr-point-edit" %}aria-current="page"{% endif %}>Kelola dan Cetak QR</a>
         <a class="admin-sidebar-link" href="{% url 'leave-notifications' %}" {% if request.resolver_match.url_name == "leave-notifications" %}aria-current="page"{% endif %}>Antrean Notifikasi Izin</a>
         <a class="admin-sidebar-link" href="{% url 'whatsapp-settings' %}" {% if request.resolver_match.url_name == "whatsapp-settings" %}aria-current="page"{% endif %}>Pengaturan WhatsApp</a>
-        <a class="admin-sidebar-link" href="{% url 'admin:index' %}">Panel Data</a>
+        <a class="admin-sidebar-link" href="{% url 'admin-users' %}" {% if request.resolver_match.url_name == "admin-users" or request.resolver_match.url_name == "admin-user-add" or request.resolver_match.url_name == "admin-user-edit" %}aria-current="page"{% endif %}>Kelola Akun</a>
+        <a class="admin-sidebar-link" href="{% url 'admin-groups' %}" {% if request.resolver_match.url_name == "admin-groups" or request.resolver_match.url_name == "admin-group-add" or request.resolver_match.url_name == "admin-group-edit" %}aria-current="page"{% endif %}>Grup dan Izin</a>
+        <a class="admin-sidebar-link" href="{% url 'admin-attendance' %}" {% if request.resolver_match.url_name == "admin-attendance" or request.resolver_match.url_name == "admin-attendance-add" or request.resolver_match.url_name == "admin-attendance-edit" %}aria-current="page"{% endif %}>Kelola Presensi</a>
+        <a class="admin-sidebar-link" href="{% url 'admin-leaves' %}" {% if request.resolver_match.url_name == "admin-leaves" or request.resolver_match.url_name == "admin-leave-add" or request.resolver_match.url_name == "admin-leave-edit" %}aria-current="page"{% endif %}>Kelola Perizinan</a>
+        <a class="admin-sidebar-link" href="{% url 'admin-locations' %}" {% if request.resolver_match.url_name == "admin-locations" or request.resolver_match.url_name == "admin-location-add" or request.resolver_match.url_name == "admin-location-edit" %}aria-current="page"{% endif %}>Lokasi Sekolah</a>
+        <a class="admin-sidebar-link" href="{% url 'admin-qr-points' %}" {% if request.resolver_match.url_name == "admin-qr-points" or request.resolver_match.url_name == "admin-qr-point-add" or request.resolver_match.url_name == "admin-qr-point-edit" %}aria-current="page"{% endif %}>Kelola Titik QR</a>
         <a class="admin-sidebar-link" href="{% url 'school-qr-display' %}" target="_blank" rel="noopener">Monitor TV</a>
         {% else %}
         <a class="admin-sidebar-link" href="{% url 'leave-notifications' %}" {% if request.resolver_match.url_name == "leave-notifications" %}aria-current="page"{% endif %}>Antrean Notifikasi Izin</a>
@@ -101,10 +106,15 @@
           <a class="admin-sidebar-link" href="{% url 'admin-dashboard' %}">Dashboard</a>
           <a class="admin-sidebar-link" href="{% url 'kiosk-scan-page' %}">Pindai QR Guru</a>
           <a class="admin-sidebar-link" href="{% url 'attendance-report' %}">Rekap Absensi</a>
-          <a class="admin-sidebar-link" href="{% url 'qr-points' %}">Kelola dan Cetak QR</a>
+          <a class="admin-sidebar-link" href="{% url 'admin-qr-points' %}">Kelola dan Cetak QR</a>
           <a class="admin-sidebar-link" href="{% url 'leave-notifications' %}">Antrean Notifikasi Izin</a>
           <a class="admin-sidebar-link" href="{% url 'whatsapp-settings' %}">Pengaturan WhatsApp</a>
-          <a class="admin-sidebar-link" href="{% url 'admin:index' %}">Panel Data</a>
+          <a class="admin-sidebar-link" href="{% url 'admin-users' %}">Kelola Akun</a>
+          <a class="admin-sidebar-link" href="{% url 'admin-groups' %}">Grup dan Izin</a>
+          <a class="admin-sidebar-link" href="{% url 'admin-attendance' %}">Kelola Presensi</a>
+          <a class="admin-sidebar-link" href="{% url 'admin-leaves' %}">Kelola Perizinan</a>
+          <a class="admin-sidebar-link" href="{% url 'admin-locations' %}">Lokasi Sekolah</a>
+          <a class="admin-sidebar-link" href="{% url 'admin-qr-points' %}">Kelola Titik QR</a>
           <a class="admin-sidebar-link" href="{% url 'school-qr-display' %}" target="_blank" rel="noopener">Monitor TV</a>
           {% else %}
           <a class="admin-sidebar-link" href="{% url 'leave-notifications' %}">Antrean Notifikasi Izin</a>
