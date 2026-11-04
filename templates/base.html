@@ -12,6 +12,22 @@
   <style>
     :root { color-scheme: light; }
     body { background: #f4f5f1; color: #202b27; }
+    @keyframes page-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes loader-spin { to { transform: rotate(360deg); } }
+    @keyframes loader-pulse { 50% { opacity: .45; transform: scale(.96); } }
+    .page-content { animation: page-enter .38s cubic-bezier(.2,.7,.2,1) both; }
+    .page-loading-overlay { position: fixed; z-index: 200; inset: 0; display: grid; place-items: center; padding: 1.5rem; background: rgba(15, 35, 29, .22); opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s ease; pointer-events: none; backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
+    .page-loading-overlay.is-visible { opacity: 1; visibility: visible; }
+    .page-loading-card { display: flex; width: min(20rem, 100%); align-items: center; gap: 1rem; border: 1px solid rgba(255,255,255,.82); border-radius: 1.25rem; background: rgba(255,255,255,.88); padding: 1.1rem 1.25rem; color: #173f35; box-shadow: 0 24px 70px rgba(18,44,35,.2), inset 0 1px rgba(255,255,255,.9); transform: translateY(8px) scale(.98); transition: transform .2s ease; }
+    .page-loading-overlay.is-visible .page-loading-card { transform: translateY(0) scale(1); }
+    .page-loading-spinner { width: 2.4rem; height: 2.4rem; flex: none; border: 3px solid rgba(23,99,76,.15); border-top-color: #17634c; border-right-color: #72a58c; border-radius: 50%; animation: loader-spin .8s linear infinite; }
+    .page-loading-copy { min-width: 0; }
+    .page-loading-title { font-size: .9rem; font-weight: 700; }
+    .page-loading-hint { margin-top: .2rem; color: #63736b; font-size: .75rem; }
+    @media (prefers-reduced-motion: reduce) {
+      .page-content, .page-loading-spinner { animation: none; }
+      .page-loading-overlay, .page-loading-card { transition: none; }
+    }
     .field { width: 100%; border: 1px solid #cfd7d2; border-radius: 6px; padding: 11px 12px; background: white; }
     .field:focus { outline: 2px solid #68a58a; outline-offset: 1px; }
     .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 6px; padding: 10px 14px; font-weight: 650; }
@@ -60,6 +76,15 @@
 </head>
 <body class="min-h-screen antialiased">
   <div id="glass-toast-region" class="glass-toast-region" aria-live="polite" aria-atomic="false"></div>
+  <div id="page-loading-overlay" class="page-loading-overlay" aria-hidden="true">
+    <div class="page-loading-card" role="status" aria-live="polite">
+      <span class="page-loading-spinner" aria-hidden="true"></span>
+      <span class="page-loading-copy">
+        <span class="page-loading-title" data-loading-title>Memuat halaman...</span>
+        <span class="page-loading-hint">Mohon tunggu sebentar</span>
+      </span>
+    </div>
+  </div>
   {% if request.user.is_authenticated and not hide_navigation %}
   <header class="sticky top-0 z-40 border-b border-[#dbe1dc] bg-white">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-5">
@@ -183,7 +208,7 @@
   {% endif %}
   {% endif %}
   {% if messages %}<div data-flash-container class="mx-auto max-w-7xl px-5 pt-4">{% for message in messages %}<p data-flash-message data-message-level="{{ message.tags }}" class="mb-2 rounded border border-[#b9d4c6] bg-[#e7f2eb] px-4 py-3 text-sm">{{ message }}</p>{% endfor %}</div>{% endif %}
-  <main class="{% if request.user.is_authenticated and not hide_navigation %}mobile-content{% endif %}">{% block content %}{% endblock %}</main>
+  <main class="page-content{% if request.user.is_authenticated and not hide_navigation %} mobile-content{% endif %}">{% block content %}{% endblock %}</main>
   {% if request.user.is_authenticated and not hide_navigation %}
   {% if request.user.role == "admin" or request.user.is_superuser or request.user.is_staff and request.user.role != "guru" %}</div></div>{% endif %}
   {% endif %}
@@ -224,6 +249,50 @@
       window.requestAnimationFrame(() => toast.classList.add('is-visible'));
       window.setTimeout(dismiss, 5000);
     };
+  </script>
+  <script>
+    (() => {
+      const overlay = document.querySelector('#page-loading-overlay');
+      const title = overlay?.querySelector('[data-loading-title]');
+      if (!overlay || !title) return;
+
+      let showTimer;
+      const showLoading = message => {
+        window.clearTimeout(showTimer);
+        title.textContent = message;
+        overlay.setAttribute('aria-hidden', 'false');
+        showTimer = window.setTimeout(() => overlay.classList.add('is-visible'), 120);
+      };
+      const hideLoading = () => {
+        window.clearTimeout(showTimer);
+        overlay.classList.remove('is-visible');
+        overlay.setAttribute('aria-hidden', 'true');
+      };
+
+      document.addEventListener('click', event => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const clickedElement = event.target instanceof Element ? event.target : event.target.parentElement;
+        const link = clickedElement?.closest('a[href]');
+        if (!link || link.hasAttribute('download') || link.target === '_blank' || link.hasAttribute('data-no-loading')) return;
+        const destination = new URL(link.href, window.location.href);
+        if (destination.origin !== window.location.origin || !['http:', 'https:'].includes(destination.protocol)) return;
+        if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+        showLoading('Membuka halaman...');
+      });
+
+      document.addEventListener('submit', event => {
+        if (event.defaultPrevented) return;
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || form.hasAttribute('data-no-loading') || form.target === '_blank') return;
+        const destination = new URL(form.action || window.location.href, window.location.href);
+        if (destination.origin !== window.location.origin) return;
+        showLoading(form.method.toLowerCase() === 'post' ? 'Mengirim data...' : 'Memuat halaman...');
+      });
+
+      window.addEventListener('pageshow', event => {
+        if (event.persisted) hideLoading();
+      });
+    })();
   </script>
   {% block scripts %}{% endblock %}
   {% if request.user.is_authenticated and not hide_navigation %}
