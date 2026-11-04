@@ -56,7 +56,7 @@
   {% if request.user.is_authenticated and not hide_navigation %}
   <header class="sticky top-0 z-40 border-b border-[#dbe1dc] bg-white">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-5">
-      <a href="{% url 'role-home' %}" class="shrink-0 font-bold tracking-wide text-[#174d3d]">PRESENSI <span class="font-normal text-[#63736b]">/ {% if request.user.role == "admin" or request.user.is_superuser %}ADMIN{% elif request.user.is_staff %}OPERATOR{% elif request.user.role == "kamad" %}KAMAD{% else %}GURU{% endif %}</span></a>
+      <a href="{% url 'role-home' %}" class="shrink-0 font-bold tracking-wide text-[#174d3d]">PRESENSI <span class="font-normal text-[#63736b]">/ {% if request.user.role == "admin" or request.user.is_superuser %}ADMIN{% elif request.user.role == "kamad" %}KAMAD{% elif request.user.role == "guru" %}GURU{% elif request.user.is_staff %}OPERATOR{% else %}GURU{% endif %}</span></a>
       <div class="hidden flex-wrap items-center justify-end gap-4 text-sm md:flex">
         <span class="text-[#52625b]">{{ request.user.nama_lengkap }}</span>
         {% if request.user.role == "admin" or request.user.is_superuser %}{% elif request.user.role == "kamad" %}<a href="{% url 'kamad-dashboard' %}" class="text-[#17634c] hover:underline">Dashboard Kamad</a><a href="{% url 'leave-report' %}" class="text-[#17634c] hover:underline">Rekap Izin</a>{% else %}<a href="{% url 'guru-scan' %}" class="text-[#17634c] hover:underline">Scan</a><a href="{% url 'guru-my-qr' %}" class="text-[#17634c] hover:underline">QR Kiosk</a><a href="{% url 'leave-requests' %}" class="text-[#17634c] hover:underline">Perizinan</a>{% endif %}
@@ -72,7 +72,7 @@
   </header>
   {% endif %}
   {% if request.user.is_authenticated and not hide_navigation %}
-  {% if request.user.is_staff or request.user.role == "admin" or request.user.is_superuser %}
+  {% if request.user.role == "admin" or request.user.is_superuser or request.user.is_staff and request.user.role != "guru" %}
   <div class="admin-layout">
     <aside class="admin-sidebar" aria-label="Navigasi administrasi">
       <p class="px-3 text-xs font-bold uppercase tracking-[.16em] text-[#a45642]">Menu Admin</p>
@@ -118,7 +118,7 @@
   {% if messages %}<div data-flash-container class="mx-auto max-w-7xl px-5 pt-4">{% for message in messages %}<p data-flash-message data-message-level="{{ message.tags }}" class="mb-2 rounded border border-[#b9d4c6] bg-[#e7f2eb] px-4 py-3 text-sm">{{ message }}</p>{% endfor %}</div>{% endif %}
   <main class="{% if request.user.is_authenticated and not hide_navigation %}mobile-content{% endif %}">{% block content %}{% endblock %}</main>
   {% if request.user.is_authenticated and not hide_navigation %}
-  {% if request.user.is_staff or request.user.role == "admin" or request.user.is_superuser %}</div></div>{% endif %}
+  {% if request.user.role == "admin" or request.user.is_superuser or request.user.is_staff and request.user.role != "guru" %}</div></div>{% endif %}
   {% endif %}
   <script>
     window.showGlassNotification = (message, type = 'success') => {
@@ -161,7 +161,7 @@
   {% block scripts %}{% endblock %}
   {% if request.user.is_authenticated and not hide_navigation %}
   <nav class="mobile-bottom-nav md:hidden" aria-label="Navigasi utama">
-    {% if request.user.is_staff or request.user.role == "admin" or request.user.is_superuser %}
+    {% if request.user.role == "admin" or request.user.is_superuser or request.user.is_staff and request.user.role != "guru" %}
       <a class="mobile-nav-item" href="{% url 'leave-notifications' %}" aria-label="Antrean notifikasi"><i data-lucide="message-circle"></i><span>Notifikasi</span></a>
       <a class="mobile-nav-item" href="{% url 'whatsapp-settings' %}" aria-label="Pengaturan WhatsApp"><i data-lucide="settings"></i><span>Nomor WA</span></a>
       <a class="mobile-scan-item" href="{% url 'leave-notifications' %}" aria-label="Antrean notifikasi izin"><span class="mobile-scan-button"><i data-lucide="message-circle"></i></span><span>Antrean</span></a>

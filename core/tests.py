@@ -77,6 +77,14 @@ class AdminDashboardTests(TestCase):
         self.assertEqual(response.status_code, 404)
         teacher.is_staff = True
         teacher.save(update_fields=("is_staff",))
+        response = self.client.get(reverse("guru-scan"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "/ GURU")
+        self.assertNotContains(response, "/ OPERATOR")
+        self.assertNotContains(response, "Antrean Notifikasi Izin")
+        self.assertNotContains(response, "Pengaturan WhatsApp")
+        self.assertNotContains(response, reverse("leave-notifications"))
+        self.assertNotContains(response, reverse("whatsapp-settings"))
         response = self.client.get("/django-admin/")
         self.assertEqual(response.status_code, 403)
 
