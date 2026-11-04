@@ -64,9 +64,15 @@ class AdminDashboardTests(TestCase):
         self.client.force_login(admin_user)
         response = self.client.get(reverse("admin-dashboard"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Buka monitor TV")
-        self.assertContains(response, "Antrean notifikasi izin")
+        self.assertContains(response, "Monitor TV")
+        self.assertContains(response, "Antrean WhatsApp")
         self.assertContains(response, 'class="admin-sidebar"')
+        self.assertContains(response, "Akun &amp; Hak Akses")
+        self.assertContains(response, "Perizinan &amp; Notifikasi")
+        self.assertContains(response, "Lokasi &amp; Perangkat QR")
+        self.assertContains(response, "Menu Pengelolaan")
+        self.assertContains(response, "Kelola akun")
+        self.assertContains(response, "Grup dan izin")
 
         teacher = UserGuru.objects.create_user(
             username="dashboard-guru",
@@ -88,6 +94,7 @@ class AdminDashboardTests(TestCase):
         self.assertNotContains(response, "Pengaturan WhatsApp")
         self.assertNotContains(response, reverse("leave-notifications"))
         self.assertNotContains(response, reverse("whatsapp-settings"))
+        self.assertNotContains(response, reverse("admin-users"))
         response = self.client.get("/django-admin/")
         self.assertEqual(response.status_code, 403)
 
