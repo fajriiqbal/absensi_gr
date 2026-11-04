@@ -12,6 +12,7 @@ from django.test import TestCase
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image
 
 from attendance.models import AbsensiLog, PengajuanIzin
 from accounts.models import UserGuru
@@ -263,26 +264,29 @@ class AdminDashboardTests(TestCase):
         worker = self.client.get(reverse("service-worker"))
         self.assertEqual(worker.status_code, 200)
         self.assertEqual(worker["Service-Worker-Allowed"], "/")
-        self.assertContains(worker, "presensi-static-v3")
+        self.assertContains(worker, "presensi-static-v4")
 
-        manifest_path = finders.find("app/manifest.json")
-        self.assertIsNotNone(manifest_path)
-        manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+        manifest_response = self.client.get(reverse("pwa-manifest"))
+        self.assertEqual(manifest_response.status_code, 200)
+        manifest = manifest_response.json()
         self.assertEqual(manifest["scope"], "/")
         self.assertEqual(
             {icon["src"] for icon in manifest["icons"]},
             {
-                "/static/app/logomada-icon-192-v3.png",
-                "/static/app/logomada-icon-512-v3.png",
+                reverse("pwa-icon", args=(192,)),
+                reverse("pwa-icon", args=(512,)),
             },
         )
         for icon in manifest["icons"]:
-            self.assertIsNotNone(finders.find(icon["src"].removeprefix("/static/")))
-        for icon_path in (
-            "app/logomada-icon-64-v3.png",
-            "app/logomada-icon-180-v3.png",
-        ):
-            self.assertIsNotNone(finders.find(icon_path))
+            icon_response = self.client.get(icon["src"])
+            self.assertEqual(icon_response.status_code, 200)
+            self.assertEqual(icon_response["Content-Type"], "image/png")
+            with Image.open(BytesIO(icon_response.content)) as image:
+                self.assertEqual(image.size, (int(icon["sizes"].split("x")[0]),) * 2)
+
+        self.assertEqual(self.client.get(reverse("pwa-icon", args=(64,))).status_code, 200)
+        self.assertEqual(self.client.get(reverse("pwa-icon", args=(180,))).status_code, 200)
+        self.assertEqual(self.client.get(reverse("pwa-icon", args=(1024,))).status_code, 404)
 
 
 class AdminManagementCRUDTests(TestCase):

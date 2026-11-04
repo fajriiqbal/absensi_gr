@@ -1,3 +1,5 @@
+from io import BytesIO
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -7,6 +9,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from PIL import Image
 
 from accounts.models import UserGuru
 from attendance.models import AbsensiLog, PengajuanIzin
@@ -160,6 +163,53 @@ def school_qr_display(request):
 def dynamic_qr(request):
     response = JsonResponse({"payload": generate_dynamic_qr_token(), "ttl": 15})
     response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    return response
+
+
+@require_GET
+def pwa_manifest(request):
+    icons = [
+        {
+            "src": reverse("pwa-icon", args=(size,)),
+            "sizes": f"{size}x{size}",
+            "type": "image/png",
+            "purpose": "any",
+        }
+        for size in (192, 512)
+    ]
+    response = JsonResponse({
+        "name": "Presensi Guru Madrasah",
+        "short_name": "Presensi",
+        "start_url": "/guru/scan",
+        "scope": "/",
+        "id": "/guru/scan",
+        "display": "standalone",
+        "background_color": "#f4f5f1",
+        "theme_color": "#173f35",
+        "icons": icons,
+    })
+    response["Cache-Control"] = "no-cache, must-revalidate"
+    return response
+
+
+@require_GET
+def pwa_icon(request, size):
+    if size not in (64, 180, 192, 512):
+        raise Http404
+
+    logo_path = settings.BASE_DIR / "static" / "app" / "images" / "logo-madrasah.png"
+    with Image.open(logo_path) as source:
+        logo = source.convert("RGBA")
+
+    canvas = Image.new("RGBA", (size, size), "#173f35")
+    padding = round(size * 0.08)
+    logo.thumbnail((size - padding * 2, size - padding * 2), Image.Resampling.LANCZOS)
+    canvas.alpha_composite(logo, ((size - logo.width) // 2, (size - logo.height) // 2))
+
+    image_buffer = BytesIO()
+    canvas.convert("RGB").save(image_buffer, format="PNG", optimize=True)
+    response = HttpResponse(image_buffer.getvalue(), content_type="image/png")
+    response["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
 

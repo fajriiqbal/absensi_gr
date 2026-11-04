@@ -39,5 +39,7 @@ urlpatterns = [
 	path("admin/cetak-qr/<int:pk>/pdf", views.qr_pdf, name="qr-pdf"),
 	path("display/qr-sekolah", views.school_qr_display, name="school-qr-display"),
 	path("api/v1/qr/dynamic", views.dynamic_qr, name="dynamic-qr"),
+	path("pwa/manifest-v4.json", views.pwa_manifest, name="pwa-manifest"),
+	path("pwa/icon/v4/<int:size>.png", views.pwa_icon, name="pwa-icon"),
 	path("service-worker.js", views.service_worker, name="service-worker"),
 ]
