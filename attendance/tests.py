@@ -385,6 +385,12 @@ class LeaveRequestWorkflowTests(TestCase):
         self.assertIsNotNone(leave.approved_at)
 
         self.client.force_login(self.teacher)
+        leave_requests_page = self.client.get(reverse("leave-requests"))
+        self.assertContains(leave_requests_page, "Unduh surat izin PDF")
+        self.assertContains(leave_requests_page, "data-no-loading")
+        teacher_history_page = self.client.get(reverse("teacher-history"))
+        self.assertContains(teacher_history_page, "Unduh surat izin PDF")
+        self.assertContains(teacher_history_page, "data-no-loading")
         letter = self.client.get(reverse("leave-letter", args=(leave.pk,)))
         self.assertEqual(letter.status_code, 200)
         self.assertEqual(letter["Content-Type"], "application/pdf")
