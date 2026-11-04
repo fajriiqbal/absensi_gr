@@ -250,7 +250,16 @@ def scan_api(request):
 
 
 def kiosk_allowed(request):
-    return request.user.is_authenticated and request.user.is_staff
+    return request.user.is_authenticated and (
+        request.user.is_staff or request.user.role == "admin" or request.user.is_superuser
+    )
+
+
+@login_required
+def kiosk_scan_page(request):
+    if not kiosk_allowed(request):
+        return render(request, "403.html", status=403)
+    return render(request, "attendance/kiosk_scan.html")
 
 
 @require_POST

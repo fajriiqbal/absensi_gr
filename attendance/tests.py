@@ -11,7 +11,7 @@ from PIL import Image
 
 from accounts.models import UserGuru
 from core.models import LokasiSekolah, TitikQRCetak
-from core.qr_engine import PRINTABLE_PREFIX, generate_dynamic_qr_token
+from core.qr_engine import PRINTABLE_PREFIX, generate_dynamic_qr_token, generate_teacher_qr_token
 
 from attendance.models import AbsensiLog, PengajuanIzin
 
@@ -90,10 +90,23 @@ class AttendanceScanTests(TestCase):
     def test_kiosk_scan_requires_staff_and_valid_teacher_qr(self):
         response = self.client.post(reverse("kiosk-scan"), {"qr_payload": "invalid"})
         self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.client.get(reverse("kiosk-scan-page")).status_code, 403)
         self.teacher.is_staff = True
         self.teacher.save(update_fields=("is_staff",))
+        page = self.client.get(reverse("kiosk-scan-page"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Pindai QR Guru")
+        self.assertContains(page, reverse("kiosk-scan"))
+
         response = self.client.post(reverse("kiosk-scan"), {"qr_payload": "invalid"})
         self.assertEqual(response.status_code, 400)
+        response = self.client.post(reverse("kiosk-scan"), {
+            "qr_payload": generate_teacher_qr_token(self.teacher),
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("berhasil", response.json()["message"])
+        log = AbsensiLog.objects.get(guru=self.teacher)
+        self.assertEqual(log.metode_scan, "qr_guru")
 
     @staticmethod
     def make_image():

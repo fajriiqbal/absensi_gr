@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Pemindai QR Guru | Kiosk Presensi{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl px-5 py-8 sm:py-10">
+  <div class="hidden">{% csrf_token %}</div>
+  <header class="border-b border-[#dbe1dc] pb-5">
+    <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Presensi Kiosk</p>
+    <h1 class="mt-2 text-2xl font-semibold text-[#173f35]">Pindai QR Guru</h1>
+    <p class="mt-1 text-sm text-[#63736b]">Minta guru membuka menu QR Kiosk pada akunnya, lalu arahkan kamera ke QR yang tampil.</p>
+  </header>
+  <div class="mt-6 grid gap-6 md:grid-cols-[1.1fr_.9fr]">
+    <section>
+      <div id="kiosk-reader" class="overflow-hidden rounded-md border border-[#cfd7d2] bg-white"></div>
+      <p id="kiosk-camera-message" class="mt-3 text-sm text-[#63736b]" aria-live="polite">Kamera belum aktif.</p>
+      <button id="kiosk-camera-button" type="button" class="button button-primary mt-3">Aktifkan kamera</button>
+    </section>
+    <section class="border-y border-[#dbe1dc] bg-white p-5">
+      <h2 class="font-semibold">Hasil pemindaian</h2>
+      <p id="kiosk-scan-result" class="mt-2 min-h-12 text-sm text-[#63736b]" role="status" aria-live="polite">Belum ada QR yang dipindai.</p>
+      <p class="mt-3 text-xs leading-5 text-[#63736b]">QR guru berlaku 45 detik. Jika kode kedaluwarsa, minta guru menunggu QR diperbarui lalu pindai kembali.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+(() => {
+  const reader = new Html5Qrcode('kiosk-reader');
+  const cameraButton = document.querySelector('#kiosk-camera-button');
+  const cameraMessage = document.querySelector('#kiosk-camera-message');
+  const resultMessage = document.querySelector('#kiosk-scan-result');
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  let running = false;
+  let processing = false;
+
+  async function startCamera() {
+    try {
+      await reader.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 240, height: 240 } },
+        handleQr,
+        () => {}
+      );
+      running = true;
+      cameraButton.textContent = 'Kamera aktif';
+      cameraButton.disabled = true;
+      cameraMessage.textContent = 'Arahkan kamera ke QR pada akun guru.';
+    } catch {
+      cameraMessage.textContent = 'Kamera tidak tersedia. Periksa izin browser dan gunakan HTTPS.';
+      window.showGlassNotification(cameraMessage.textContent, 'error');
+    }
+  }
+
+  async function handleQr(payload) {
+    if (processing) return;
+    processing = true;
+    try {
+      if (running) {
+        await reader.stop();
+        running = false;
+      }
+
+      const form = new FormData();
+      form.append('qr_payload', payload);
+      form.append('csrfmiddlewaretoken', csrfToken);
+      const response = await fetch('{% url "kiosk-scan" %}', {
+        method: 'POST',
+        body: form,
+        headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
+      });
+      const data = await response.json();
+      resultMessage.textContent = data.message || 'Pemindaian gagal.';
+      resultMessage.className = `mt-2 min-h-12 text-sm ${response.ok ? 'text-[#17634c]' : 'text-[#a34431]'}`;
+      window.showGlassNotification(resultMessage.textContent, response.ok ? 'success' : 'error');
+      cameraMessage.textContent = 'Tekan tombol untuk memindai QR guru berikutnya.';
+    } catch {
+      resultMessage.textContent = 'Koneksi gagal. Periksa jaringan lalu pindai kembali.';
+      resultMessage.className = 'mt-2 min-h-12 text-sm text-[#a34431]';
+      window.showGlassNotification(resultMessage.textContent, 'error');
+      cameraMessage.textContent = 'Tekan tombol untuk mencoba kembali.';
+    } finally {
+      processing = false;
+      cameraButton.disabled = false;
+      cameraButton.textContent = 'Pindai QR berikutnya';
+    }
+  }
+
+  cameraButton.addEventListener('click', startCamera);
+})();
+</script>
+{% endblock %}

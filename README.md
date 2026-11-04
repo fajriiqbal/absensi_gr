@@ -31,6 +31,7 @@ Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python
 - Dashboard Admin: `/admin/dashboard`
 - Rekap absensi bulanan per guru (Excel): `/admin/rekap-absensi/`
 - Cetak QR poster (admin/operator): `/admin/cetak-qr`
+- Pemindai QR dari akun guru (admin/petugas): `/kiosk/scan`
 - QR dinamis untuk TV: `/display/qr-sekolah`
 - Pemindai guru: `/guru/scan`
 - Pengajuan dan riwayat izin guru: `/guru/perijinan/`
@@ -38,7 +39,7 @@ Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python
 - Histori perizinan bulanan Kamad (Excel): `/kamad/rekap-perizinan/`
 - Admin Django: `/django-admin/`
 
-Gunakan akun dengan role `admin` untuk Dashboard Admin dan panel data. Akun `guru` hanya mendapat halaman scan/QR kiosk; akun `kamad` mendapat dashboard monitoring dan approval. Monitor TV dapat dibuka tanpa login.
+Gunakan akun dengan role `admin` untuk Dashboard Admin dan panel data. Akun `admin` atau petugas dengan akses staff dapat membuka `/kiosk/scan` untuk memindai QR dinamis pada halaman QR Kiosk guru. Akun `guru` hanya mendapat halaman scan/QR kiosk; akun `kamad` mendapat dashboard monitoring dan approval. Monitor TV dapat dibuka tanpa login.
 
 Guru mengajukan izin pada `/guru/perijinan/` dengan mengisi tanggal, alasan, dan lampiran bukti PDF/JPG/PNG (maksimal 5 MB). Setiap pengajuan dapat memuat beberapa rincian jadwal: hari/tanggal, mapel dan jam yang diampu, mapel/jam lukiran, keterangan kelas (contoh `VII-A`), serta guru rekan. Kamad melihat rincian tersebut saat approval. Setelah disetujui, guru dapat mengunduh surat persetujuan PDF dari riwayatnya; rekap Excel Kamad menyertakan sheet rincian jadwal.
 
