@@ -9,7 +9,8 @@ from django.views.decorators.http import require_GET, require_POST
 from accounts.models import UserGuru
 from attendance.models import AbsensiLog
 
-from .models import TitikQRCetak
+from .forms import WhatsAppSettingsForm
+from .models import TitikQRCetak, WhatsAppSettings
 from .qr_engine import generate_dynamic_qr_token
 from .qr_generator import generate_printable_qr_pdf
 
@@ -26,6 +27,32 @@ def admin_dashboard(request):
         "teacher_count": UserGuru.objects.filter(role="guru", is_active=True).count(),
         "today_attendance_count": AbsensiLog.objects.filter(tanggal=timezone.localdate()).count(),
         "active_qr_count": TitikQRCetak.objects.filter(is_active=True).count(),
+    })
+
+
+@login_required
+def whatsapp_settings(request):
+    if not admin_or_operator(request.user):
+        raise Http404
+    config = WhatsAppSettings.get_settings()
+    if request.method == "POST":
+        form = WhatsAppSettingsForm(request.POST, instance=config)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Pengaturan notifikasi WhatsApp berhasil disimpan.")
+            return redirect("whatsapp-settings")
+    else:
+        form = WhatsAppSettingsForm(instance=config)
+    return render(request, "core/whatsapp_settings.html", {
+        "form": form,
+        "is_ready": bool(
+            settings.WHATSAPP_ACCESS_TOKEN
+            and config.sender_phone_number_id
+            and config.sender_phone_number
+            and config.kamad_phone_number
+            and config.template_name
+            and config.template_language
+        ),
     })
 
 

@@ -11,7 +11,7 @@ from django.urls import reverse
 
 from accounts.models import UserGuru
 from core.geo import calculate_haversine, parse_coordinates
-from core.models import TitikQRCetak
+from core.models import TitikQRCetak, WhatsAppSettings
 from core.qr_engine import generate_dynamic_qr_token, verify_dynamic_qr_token
 from core.qr_generator import generate_printable_qr_pdf
 
@@ -55,6 +55,8 @@ class AdminDashboardTests(TestCase):
         response = self.client.get(reverse("admin-dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Buka monitor TV")
+        self.assertContains(response, "Notifikasi WhatsApp")
+        self.assertContains(response, 'class="admin-sidebar"')
 
         teacher = UserGuru.objects.create_user(
             username="dashboard-guru",
@@ -70,6 +72,42 @@ class AdminDashboardTests(TestCase):
         teacher.save(update_fields=("is_staff",))
         response = self.client.get("/django-admin/")
         self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_configure_whatsapp_numbers_and_template(self):
+        admin_user = UserGuru.objects.create_superuser(
+            username="whatsapp-admin",
+            nip="900012",
+            nama_lengkap="Admin WhatsApp",
+            email="whatsapp-admin@example.test",
+            password="StrongPass123!",
+        )
+        self.client.force_login(admin_user)
+        response = self.client.get(reverse("whatsapp-settings"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "WhatsApp Cloud API")
+
+        response = self.client.post(reverse("whatsapp-settings"), {
+            "sender_phone_number_id": "123456789012345",
+            "sender_phone_number": "0812-3456-7890",
+            "kamad_phone_number": "+6281234567891",
+            "template_name": "notifikasi_pengajuan_izin",
+            "template_language": "id",
+        })
+        self.assertRedirects(response, reverse("whatsapp-settings"))
+        config = WhatsAppSettings.get_settings()
+        self.assertEqual(config.sender_phone_number, "+6281234567890")
+        self.assertEqual(config.kamad_phone_number, "+6281234567891")
+
+    def test_non_admin_cannot_access_whatsapp_settings(self):
+        teacher = UserGuru.objects.create_user(
+            username="whatsapp-teacher",
+            nip="900013",
+            nama_lengkap="Guru",
+            email="whatsapp-teacher@example.test",
+            password="StrongPass123!",
+        )
+        self.client.force_login(teacher)
+        self.assertEqual(self.client.get(reverse("whatsapp-settings")).status_code, 404)
 
     def test_school_monitor_is_public_and_renders(self):
         response = self.client.get(reverse("school-qr-display"))

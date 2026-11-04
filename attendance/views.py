@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 import mimetypes
+import logging
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -16,6 +17,7 @@ from accounts.models import UserGuru
 from core.geo import calculate_haversine, parse_coordinates
 from core.models import LokasiSekolah, TitikQRCetak
 from core.qr_engine import GURU_PREFIX, PRINTABLE_PREFIX, TV_PREFIX, generate_teacher_qr_token, verify_dynamic_qr_token, verify_teacher_qr_token
+from core.whatsapp import WhatsAppConfigurationError, WhatsAppDeliveryError, send_leave_notification
 
 from .forms import JadwalPelajaranIzinFormSetFactory, PengajuanIzinForm
 from .letters import generate_leave_letter_pdf
@@ -25,6 +27,7 @@ from .reporting import MONTH_NAMES, build_attendance_summary, build_attendance_w
 
 MAX_SELFIE_SIZE = 5 * 1024 * 1024
 REPORT_MONTH_OPTIONS = tuple(enumerate(MONTH_NAMES, start=1))
+logger = logging.getLogger(__name__)
 
 
 def api_error(message, status=400):
@@ -116,6 +119,14 @@ def leave_requests(request):
                 schedule_formset.instance = leave
                 schedule_formset.save()
             messages.success(request, "Pengajuan izin berhasil dikirim untuk persetujuan.")
+            try:
+                send_leave_notification(leave)
+            except WhatsAppConfigurationError as exc:
+                logger.warning("WhatsApp notification skipped for leave request %s: %s", leave.pk, exc)
+                messages.warning(request, "Pengajuan tersimpan, tetapi notifikasi WhatsApp belum terkirim: pengaturan Cloud API belum lengkap. Hubungi admin.")
+            except WhatsAppDeliveryError as exc:
+                logger.warning("WhatsApp notification failed for leave request %s: %s", leave.pk, exc)
+                messages.warning(request, "Pengajuan tersimpan, tetapi notifikasi WhatsApp ke Kamad gagal dikirim. Admin perlu memeriksa koneksi dan template.")
             return redirect("leave-requests")
         submission_error = True
     else:

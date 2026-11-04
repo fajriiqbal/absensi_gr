@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Notifikasi WhatsApp | Admin{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl px-5 py-8 sm:py-10">
+  <header class="border-b border-[#dbe1dc] pb-5">
+    <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Integrasi Notifikasi</p>
+    <h1 class="mt-2 text-2xl font-semibold text-[#173f35]">WhatsApp Cloud API</h1>
+    <p class="mt-1 text-sm text-[#63736b]">Atur nomor bisnis pengirim dan nomor Kamad yang menerima pemberitahuan pengajuan izin.</p>
+  </header>
+
+  <div class="mt-6 border-l-4 {% if is_ready %}border-[#17634c] bg-[#e7f2eb]{% else %}border-[#a45642] bg-[#fff5ed]{% endif %} p-4 text-sm">
+    {% if is_ready %}
+      <p class="font-semibold text-[#17634c]">Konfigurasi dasar sudah terisi.</p>
+      <p class="mt-1 text-[#52625b]">Notifikasi akan dikirim saat guru mengajukan izin. Pastikan nomor, token, dan template sudah aktif di Meta.</p>
+    {% else %}
+      <p class="font-semibold text-[#8d4a2d]">Notifikasi belum siap.</p>
+      <p class="mt-1 text-[#52625b]">Isi nomor dan Phone Number ID di bawah, lalu atur WHATSAPP_ACCESS_TOKEN pada environment server.</p>
+    {% endif %}
+  </div>
+
+  <form method="post" class="mt-6 space-y-5 border-y border-[#dbe1dc] bg-white p-5 sm:p-7">
+    {% csrf_token %}
+    {% for field in form %}
+      <div>
+        <label class="mb-1 block text-sm font-semibold text-[#173f35]" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<p class="mt-1 text-xs text-[#63736b]">{{ field.help_text }}</p>{% endif %}
+        {% for error in field.errors %}<p class="mt-1 text-xs text-[#a34431]" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+
+    <div class="border-t border-[#dbe1dc] pt-4 text-sm leading-6 text-[#52625b]">
+      <p class="font-semibold text-[#173f35]">Sebelum mengaktifkan</p>
+      <ul class="mt-2 list-disc space-y-1 pl-5">
+        <li>Nomor pengirim harus terdaftar pada WhatsApp Business Platform. Phone Number ID diambil dari WhatsApp Manager; nomor yang ditampilkan tidak menggantikan ID tersebut.</li>
+        <li>Token akses hanya disimpan di environment server sebagai <code>WHATSAPP_ACCESS_TOKEN</code>, bukan di database atau Git.</li>
+        <li>Buat dan setujui template kategori Utility dengan bahasa yang dipilih, berisi empat variabel body berurutan: nama guru, jenis izin, tanggal mulai, dan tanggal selesai.</li>
+        <li>Pastikan Kamad setuju menerima pemberitahuan WhatsApp (opt-in). Alasan izin dan lampiran tidak dikirim melalui WA.</li>
+      </ul>
+    </div>
+
+    <button class="button button-primary w-full sm:w-auto" type="submit">Simpan pengaturan</button>
+  </form>
+</div>
+{% endblock %}

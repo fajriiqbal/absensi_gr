@@ -29,6 +29,7 @@ Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python
 - Login: `/login/`
 - Setup PWA: `/guru/pwa-setup/`
 - Dashboard Admin: `/admin/dashboard`
+- Pengaturan notifikasi WhatsApp: `/admin/pengaturan-whatsapp`
 - Rekap absensi bulanan per guru (Excel): `/admin/rekap-absensi/`
 - Cetak QR poster (admin/operator): `/admin/cetak-qr`
 - Pemindai QR dari akun guru (admin/petugas): `/kiosk/scan`
@@ -40,6 +41,12 @@ Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python
 - Admin Django: `/django-admin/`
 
 Gunakan akun dengan role `admin` untuk Dashboard Admin dan panel data. Akun `admin` atau petugas dengan akses staff dapat membuka `/kiosk/scan` untuk memindai QR dinamis pada halaman QR Kiosk guru. Akun `guru` hanya mendapat halaman scan/QR kiosk; akun `kamad` mendapat dashboard monitoring dan approval. Monitor TV dapat dibuka tanpa login.
+
+### Notifikasi izin melalui WhatsApp
+
+Notifikasi menggunakan WhatsApp Cloud API resmi Meta. Atur `WHATSAPP_ACCESS_TOKEN` sebagai environment variable rahasia dan versi Graph API pada `WHATSAPP_API_VERSION` di hosting. Admin kemudian mengisi WhatsApp **Phone Number ID**, nomor bisnis pengirim, nomor Kamad, nama template Utility yang sudah disetujui Meta, dan kode bahasanya pada `/admin/pengaturan-whatsapp`. Phone Number ID adalah ID provider, bukan nomor telepon; nomor bisnis harus sudah terdaftar pada WhatsApp Business Platform. Jangan menyimpan access token di database atau Git.
+
+Buat template kategori Utility dengan empat parameter body berurutan: nama guru, jenis izin, tanggal mulai, dan tanggal selesai. Contoh isi: `Pengajuan izin baru dari {{1}} ({{2}}), tanggal {{3}} s.d. {{4}}.` Pastikan template dan kode bahasanya sama persis dengan yang disetujui di Meta. Kamad harus memberi persetujuan (opt-in) untuk menerima pesan. Hanya informasi tersebut yang dikirim; alasan dan dokumen bukti izin tidak dikirim lewat WhatsApp. Jika konfigurasi atau API gagal, pengajuan izin tetap tersimpan dan guru mendapat pemberitahuan bahwa notifikasi WA gagal.
 
 Guru mengajukan izin pada `/guru/perijinan/` dengan mengisi tanggal, alasan, dan lampiran bukti PDF/JPG/PNG (maksimal 5 MB). Setiap pengajuan dapat memuat beberapa rincian jadwal: hari/tanggal, mapel dan jam yang diampu, mapel/jam lukiran, keterangan kelas (contoh `VII-A`), serta guru rekan. Kamad melihat rincian tersebut saat approval. Setelah disetujui, guru dapat mengunduh surat persetujuan PDF dari riwayatnya; rekap Excel Kamad menyertakan sheet rincian jadwal.
 
