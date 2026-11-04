@@ -1,9 +1,11 @@
-const CACHE_NAME = 'presensi-static-v2';
+const CACHE_NAME = 'presensi-static-v3';
 const APP_ASSETS = [
-	'/static/app/manifest.json',
+	'/static/app/manifest.json?v=3',
 	'/static/app/images/logo-madrasah.png',
-	'/static/app/icon-192.png',
-	'/static/app/icon-512.png',
+	'/static/app/logomada-icon-64-v3.png',
+	'/static/app/logomada-icon-180-v3.png',
+	'/static/app/logomada-icon-192-v3.png',
+	'/static/app/logomada-icon-512-v3.png',
 ];
 
 self.addEventListener('install', event => {

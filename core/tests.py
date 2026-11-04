@@ -263,13 +263,26 @@ class AdminDashboardTests(TestCase):
         worker = self.client.get(reverse("service-worker"))
         self.assertEqual(worker.status_code, 200)
         self.assertEqual(worker["Service-Worker-Allowed"], "/")
+        self.assertContains(worker, "presensi-static-v3")
 
         manifest_path = finders.find("app/manifest.json")
         self.assertIsNotNone(manifest_path)
         manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
         self.assertEqual(manifest["scope"], "/")
+        self.assertEqual(
+            {icon["src"] for icon in manifest["icons"]},
+            {
+                "/static/app/logomada-icon-192-v3.png",
+                "/static/app/logomada-icon-512-v3.png",
+            },
+        )
         for icon in manifest["icons"]:
             self.assertIsNotNone(finders.find(icon["src"].removeprefix("/static/")))
+        for icon_path in (
+            "app/logomada-icon-64-v3.png",
+            "app/logomada-icon-180-v3.png",
+        ):
+            self.assertIsNotNone(finders.find(icon_path))
 
 
 class AdminManagementCRUDTests(TestCase):
