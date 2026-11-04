@@ -90,6 +90,7 @@ class LeaveReportTests(TestCase):
         preview = self.client.get(reverse("leave-report"), params)
         self.assertEqual(preview.status_code, 200)
         self.assertContains(preview, "Histori perizinan bulanan")
+        self.assertContains(preview, "data-download-progress")
         params["aksi"] = "xlsx"
         response = self.client.get(reverse("leave-report"), params)
         self.assertEqual(response.status_code, 200)

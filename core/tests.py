@@ -324,6 +324,7 @@ class AdminManagementCRUDTests(TestCase):
 
         response = self.client.get(reverse("admin-users"))
         self.assertContains(response, "Unduh template Excel")
+        self.assertContains(response, "data-download-progress")
         self.assertContains(response, "Impor akun guru dari Excel")
         self.assertNotContains(
             response,

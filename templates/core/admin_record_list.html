@@ -9,7 +9,7 @@
       <p class="mt-1 text-sm text-[#63736b]">{{ page.paginator.count }} data</p>
     </div>
     <div class="flex flex-wrap gap-2">
-      {% if template_url %}<a class="button button-muted" href="{{ template_url }}">Unduh template Excel</a>{% endif %}
+      {% if template_url %}<a class="button button-muted" href="{{ template_url }}" data-download-progress>Unduh template Excel</a>{% endif %}
       <a class="button button-primary" href="{{ add_url }}">Tambah data</a>
     </div>
   </header>
@@ -43,7 +43,7 @@
           </div>
         </div>
         <div class="flex shrink-0 gap-2">
-          {% if entry.pdf_url and entry.record.is_active %}<a class="button button-muted" href="{{ entry.pdf_url }}">Unduh PDF</a>{% endif %}
+          {% if entry.pdf_url and entry.record.is_active %}<a class="button button-muted" href="{{ entry.pdf_url }}" data-download-progress>Unduh PDF</a>{% endif %}
           <a class="button button-muted" href="{{ entry.edit_url }}">Ubah</a>
           {% if entry.can_delete %}<a class="button border border-[#ead0ca] bg-[#fff5f2] text-[#963d2f]" href="{{ entry.delete_url }}">Hapus</a>{% endif %}
         </div>

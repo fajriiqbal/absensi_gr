@@ -83,7 +83,7 @@
             <p class="mt-3 text-xs text-[#7a8780]">Diproses {{ leave.approved_at|date:"d M Y, H:i" }}</p>
           {% endif %}
           {% if leave.status_approval == "disetujui" %}
-            <a class="button button-primary mt-4 min-h-11 w-full rounded-xl sm:w-auto" href="{% url 'leave-letter' leave.pk %}" data-no-loading>Unduh surat izin PDF</a>
+            <a class="button button-primary mt-4 min-h-11 w-full rounded-xl sm:w-auto" href="{% url 'leave-letter' leave.pk %}" data-download-progress>Unduh surat izin PDF</a>
           {% endif %}
         </article>
       {% empty %}

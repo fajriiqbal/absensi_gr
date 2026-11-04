@@ -21,12 +21,21 @@
     .page-loading-card { display: flex; width: min(20rem, 100%); align-items: center; gap: 1rem; border: 1px solid rgba(255,255,255,.82); border-radius: 1.25rem; background: rgba(255,255,255,.88); padding: 1.1rem 1.25rem; color: #173f35; box-shadow: 0 24px 70px rgba(18,44,35,.2), inset 0 1px rgba(255,255,255,.9); transform: translateY(8px) scale(.98); transition: transform .2s ease; }
     .page-loading-overlay.is-visible .page-loading-card { transform: translateY(0) scale(1); }
     .page-loading-spinner { width: 2.4rem; height: 2.4rem; flex: none; border: 3px solid rgba(23,99,76,.15); border-top-color: #17634c; border-right-color: #72a58c; border-radius: 50%; animation: loader-spin .8s linear infinite; }
-    .page-loading-copy { min-width: 0; }
+    .page-loading-copy { min-width: 0; flex: 1; }
     .page-loading-title { font-size: .9rem; font-weight: 700; }
     .page-loading-hint { margin-top: .2rem; color: #63736b; font-size: .75rem; }
+    .download-progress { display: none; width: 100%; margin-top: .8rem; }
+    .page-loading-overlay.is-downloading .download-progress { display: block; }
+    .download-progress-track { height: .45rem; overflow: hidden; border-radius: 999px; background: #dfe9e2; }
+    .download-progress-bar { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #17634c, #75ae8e); transition: width .16s ease; }
+    .download-progress-bar.is-indeterminate { width: 36%; animation: download-progress-slide 1.1s ease-in-out infinite alternate; }
+    @keyframes download-progress-slide { from { transform: translateX(-10%); } to { transform: translateX(190%); } }
+    .page-loading-overlay.is-complete .page-loading-spinner { display: none; }
     @media (prefers-reduced-motion: reduce) {
       .page-content, .page-loading-spinner { animation: none; }
       .page-loading-overlay, .page-loading-card { transition: none; }
+      .download-progress-bar { transition: none; }
+      .download-progress-bar.is-indeterminate { animation: none; width: 100%; }
     }
     .field { width: 100%; border: 1px solid #cfd7d2; border-radius: 6px; padding: 11px 12px; background: white; }
     .field:focus { outline: 2px solid #68a58a; outline-offset: 1px; }
@@ -82,6 +91,10 @@
       <span class="page-loading-copy">
         <span class="page-loading-title" data-loading-title>Memuat halaman...</span>
         <span class="page-loading-hint">Mohon tunggu sebentar</span>
+        <span class="download-progress" data-download-progress hidden>
+          <span class="download-progress-track"><span class="download-progress-bar" data-download-progress-bar></span></span>
+          <span class="page-loading-hint" data-download-progress-label aria-live="polite"></span>
+        </span>
       </span>
     </div>
   </div>
@@ -254,11 +267,19 @@
     (() => {
       const overlay = document.querySelector('#page-loading-overlay');
       const title = overlay?.querySelector('[data-loading-title]');
+      const hint = overlay?.querySelector('.page-loading-hint:not([data-download-progress-label])');
+      const progress = overlay?.querySelector('[data-download-progress]');
+      const progressBar = overlay?.querySelector('[data-download-progress-bar]');
+      const progressLabel = overlay?.querySelector('[data-download-progress-label]');
       if (!overlay || !title) return;
 
       let showTimer;
+      let downloadHideTimer;
+      let activeDownload = false;
       const showLoading = message => {
         window.clearTimeout(showTimer);
+        window.clearTimeout(downloadHideTimer);
+        overlay.classList.remove('is-downloading', 'is-complete');
         title.textContent = message;
         overlay.setAttribute('aria-hidden', 'false');
         showTimer = window.setTimeout(() => overlay.classList.add('is-visible'), 120);
@@ -266,8 +287,139 @@
       const hideLoading = () => {
         window.clearTimeout(showTimer);
         overlay.classList.remove('is-visible');
+        overlay.classList.remove('is-downloading', 'is-complete');
         overlay.setAttribute('aria-hidden', 'true');
+        if (progress) progress.hidden = true;
       };
+      const formatBytes = bytes => {
+        if (bytes < 1024) return `${bytes} B`;
+        const units = ['KB', 'MB', 'GB'];
+        let value = bytes / 1024;
+        let unit = 0;
+        while (value >= 1024 && unit < units.length - 1) {
+          value /= 1024;
+          unit += 1;
+        }
+        return `${value.toFixed(1)} ${units[unit]}`;
+      };
+      const setDownloadProgress = (received, total) => {
+        if (!progressBar || !progressLabel) return;
+        if (total > 0) {
+          const percent = Math.min(99, Math.floor(received / total * 100));
+          progressBar.classList.remove('is-indeterminate');
+          progressBar.style.width = `${percent}%`;
+          progressLabel.textContent = `${percent}% · ${formatBytes(received)} dari ${formatBytes(total)}`;
+        } else {
+          progressBar.classList.add('is-indeterminate');
+          progressBar.style.width = '';
+          progressLabel.textContent = `${formatBytes(received)} diterima`;
+        }
+      };
+      const filenameFromResponse = response => {
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+        if (encodedName) {
+          try {
+            return decodeURIComponent(encodedName.replace(/^["']|["']$/g, ''));
+          } catch {
+            return encodedName;
+          }
+        }
+        return disposition.match(/filename="?([^";]+)"?/i)?.[1] || 'unduhan';
+      };
+      const downloadFile = async (url, options = {}) => {
+        if (activeDownload) return;
+        activeDownload = true;
+        window.clearTimeout(showTimer);
+        window.clearTimeout(downloadHideTimer);
+        overlay.classList.remove('is-complete');
+        overlay.classList.add('is-downloading', 'is-visible');
+        title.textContent = 'Menyiapkan unduhan...';
+        if (hint) hint.textContent = 'Mohon tunggu file selesai diterima';
+        if (progress) progress.hidden = false;
+        if (progressBar) {
+          progressBar.classList.add('is-indeterminate');
+          progressBar.style.width = '';
+        }
+        if (progressLabel) progressLabel.textContent = 'Menghubungkan...';
+        overlay.setAttribute('aria-hidden', 'false');
+
+        try {
+          const response = await fetch(url, { credentials: 'same-origin', ...options });
+          if (!response.ok) throw new Error(`Permintaan unduhan gagal (${response.status}).`);
+          if (!/attachment/i.test(response.headers.get('Content-Disposition') || '')) {
+            throw new Error('Server tidak mengirim file unduhan yang diharapkan.');
+          }
+
+          const filename = filenameFromResponse(response);
+          const total = Number(response.headers.get('Content-Length')) || 0;
+          let blob;
+          if (!response.body?.getReader) {
+            blob = await response.blob();
+            setDownloadProgress(blob.size, total);
+          } else {
+            const reader = response.body.getReader();
+            const chunks = [];
+            let received = 0;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              received += value.byteLength;
+              setDownloadProgress(received, total);
+            }
+            blob = new Blob(chunks, { type: response.headers.get('Content-Type') || 'application/octet-stream' });
+          }
+
+          const objectUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = filename;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+
+          if (progressBar) {
+            progressBar.classList.remove('is-indeterminate');
+            progressBar.style.width = '100%';
+          }
+          if (progressLabel) progressLabel.textContent = '100% · File siap diunduh';
+          title.textContent = 'Unduhan selesai';
+          if (hint) hint.textContent = filename;
+          overlay.classList.remove('is-downloading');
+          overlay.classList.add('is-complete');
+          downloadHideTimer = window.setTimeout(hideLoading, 1200);
+        } catch (error) {
+          hideLoading();
+          window.showGlassNotification?.(error.message || 'Unduhan gagal. Silakan coba lagi.', 'error');
+        } finally {
+          activeDownload = false;
+        }
+      };
+
+      document.addEventListener('click', event => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const clickedElement = event.target instanceof Element ? event.target : event.target.parentElement;
+        const link = clickedElement?.closest('a[data-download-progress][href]');
+        if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+        const destination = new URL(link.href, window.location.href);
+        if (destination.origin !== window.location.origin || !['http:', 'https:'].includes(destination.protocol)) return;
+        event.preventDefault();
+        downloadFile(destination.href);
+      });
+
+      document.addEventListener('submit', event => {
+        const form = event.target;
+        const submitter = event.submitter;
+        if (!(form instanceof HTMLFormElement) || !submitter?.hasAttribute('data-download-progress')) return;
+        const destination = new URL(form.action || window.location.href, window.location.href);
+        if (destination.origin !== window.location.origin || form.method.toLowerCase() !== 'get') return;
+        event.preventDefault();
+        const params = new URLSearchParams(new FormData(form, submitter));
+        destination.search = params.toString();
+        downloadFile(destination.href);
+      });
 
       document.addEventListener('click', event => {
         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -289,8 +441,8 @@
         showLoading(form.method.toLowerCase() === 'post' ? 'Mengirim data...' : 'Memuat halaman...');
       });
 
-      window.addEventListener('pageshow', event => {
-        if (event.persisted) hideLoading();
+      window.addEventListener('pageshow', () => {
+        hideLoading();
       });
     })();
   </script>
