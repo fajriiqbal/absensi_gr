@@ -3,8 +3,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.utils import IntegrityError
 from django.db.models import Q
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -21,6 +22,7 @@ from .management_forms import (
     TitikQRCetakManagementForm,
     UserGuruManagementForm,
 )
+from .guru_import import GuruImportError, parse_guru_workbook, build_guru_template
 from .models import LokasiSekolah, TitikQRCetak
 from .views import admin_or_operator
 
@@ -30,7 +32,7 @@ def _require_admin(request):
         raise Http404
 
 
-def _record_list(request, *, title, records, search_fields, route, delete_route, list_url, add_url, describe, pdf_route=None):
+def _record_list(request, *, title, records, search_fields, route, delete_route, list_url, add_url, describe, pdf_route=None, import_url=None, template_url=None):
     query = request.GET.get("q", "").strip()
     if query:
         search = Q()
@@ -58,6 +60,8 @@ def _record_list(request, *, title, records, search_fields, route, delete_route,
         "add_url": add_url,
         "list_url": reverse(list_url),
         "delete_route": delete_route,
+        "import_url": import_url,
+        "template_url": template_url,
     })
 
 
@@ -73,12 +77,52 @@ def manage_users(request):
         delete_route="admin-user-delete-confirm",
         list_url="admin-users",
         add_url=reverse("admin-user-add"),
+        import_url=reverse("admin-users-import"),
+        template_url=reverse("admin-users-template"),
         describe=lambda user: (
             user.get_role_display(),
             f"NIP {user.nip}",
             "Aktif" if user.is_active else "Nonaktif",
         ),
     )
+
+
+@login_required
+def download_guru_template(request):
+    _require_admin(request)
+    response = HttpResponse(
+        build_guru_template(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="template-data-guru.xlsx"'
+    return response
+
+
+@login_required
+def import_guru_accounts(request):
+    _require_admin(request)
+    if request.method != "POST":
+        raise Http404
+    upload = request.FILES.get("file")
+    if upload is None:
+        messages.error(request, "Pilih file template Excel yang sudah diisi.")
+        return redirect("admin-users")
+    try:
+        users = parse_guru_workbook(upload)
+        with transaction.atomic():
+            for user in users:
+                user.save()
+    except GuruImportError as exc:
+        messages.error(request, str(exc))
+        return redirect("admin-users")
+    except IntegrityError:
+        messages.error(
+            request,
+            "Impor dibatalkan karena ada NIP atau username yang sudah digunakan. Tidak ada akun yang dibuat.",
+        )
+        return redirect("admin-users")
+    messages.success(request, f"Berhasil membuat {len(users)} akun guru.")
+    return redirect("admin-users")
 
 
 @login_required

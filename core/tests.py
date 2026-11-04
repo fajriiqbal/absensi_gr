@@ -1,4 +1,5 @@
 from datetime import timedelta
+from io import BytesIO
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -20,6 +21,7 @@ from core.qr_engine import generate_dynamic_qr_token, verify_dynamic_qr_token
 from core.qr_generator import generate_printable_qr_pdf
 from core.whatsapp_links import build_leave_notification_link
 from core.forms import normalize_phone_number
+from openpyxl import Workbook, load_workbook
 
 
 class GeoUtilityTests(SimpleTestCase):
@@ -255,10 +257,106 @@ class AdminManagementCRUDTests(TestCase):
                     self.assertContains(response, 'id="add-schedule-form"')
 
         response = self.client.get(reverse("admin-users"))
+        self.assertContains(response, "Unduh template Excel")
+        self.assertContains(response, "Impor akun guru dari Excel")
         self.assertNotContains(
             response,
             reverse("admin-user-delete-confirm", args=(self.admin.pk,)),
         )
+
+    def test_guru_template_download_contains_required_columns_and_instructions(self):
+        response = self.client.get(reverse("admin-users-template"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.assertIn("template-data-guru.xlsx", response["Content-Disposition"])
+        workbook = load_workbook(BytesIO(response.content), read_only=True)
+        self.assertEqual(
+            tuple(cell.value for cell in workbook["Data Guru"][1]),
+            ("nip", "nama_lengkap", "email", "password"),
+        )
+        self.assertIn("Petunjuk", workbook.sheetnames)
+        workbook.close()
+
+    def test_import_creates_all_guru_accounts_from_template(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Data Guru"
+        sheet.append(("nip", "nama_lengkap", "email", "password"))
+        sheet.append(("001234", "Guru Pertama", "guru1-import@example.test", "ImportGuru!Pass734"))
+        sheet.append(("001235", "Guru Kedua", "guru2-import@example.test", "ImportGuru!Pass735"))
+        file_buffer = BytesIO()
+        workbook.save(file_buffer)
+
+        response = self.client.post(reverse("admin-users-import"), {
+            "file": SimpleUploadedFile(
+                "guru.xlsx",
+                file_buffer.getvalue(),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+        }, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.request["PATH_INFO"], reverse("admin-users"))
+        self.assertContains(response, "Berhasil membuat 2 akun guru.")
+        self.assertEqual(UserGuru.objects.filter(role="guru", nip__in=("001234", "001235")).count(), 2)
+        first = UserGuru.objects.get(nip="001234")
+        self.assertEqual(first.username, "001234")
+        self.assertTrue(first.is_active)
+        self.assertTrue(first.check_password("ImportGuru!Pass734"))
+
+    def test_invalid_guru_import_is_atomic_and_reports_row_errors(self):
+        UserGuru.objects.create_user(
+            username="existing-imported",
+            nip="009999",
+            nama_lengkap="Guru Lama",
+            email="existing-imported@example.test",
+            password="ExistingGuru!Pass734",
+        )
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Data Guru"
+        sheet.append(("nip", "nama_lengkap", "email", "password"))
+        sheet.append(("009998", "Guru Baru", "new-imported@example.test", "NewGuru!Pass734"))
+        sheet.append(("009999", "Guru Duplikat", "duplicate@example.test", "DuplicateGuru!Pass734"))
+        file_buffer = BytesIO()
+        workbook.save(file_buffer)
+
+        response = self.client.post(reverse("admin-users-import"), {
+            "file": SimpleUploadedFile("guru.xlsx", file_buffer.getvalue()),
+        }, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.request["PATH_INFO"], reverse("admin-users"))
+        self.assertFalse(UserGuru.objects.filter(nip="009998").exists())
+        self.assertContains(response, "Impor dibatalkan")
+        self.assertContains(response, "Baris 3")
+
+    def test_import_rejects_non_xlsx_and_empty_file(self):
+        for file in (
+            SimpleUploadedFile("guru.csv", b"nip,nama_lengkap,email,password"),
+            None,
+        ):
+            with self.subTest(file=file):
+                response = self.client.post(reverse("admin-users-import"), {"file": file} if file else {})
+                self.assertRedirects(response, reverse("admin-users"))
+                self.assertEqual(UserGuru.objects.count(), 1)
+
+    def test_only_admin_can_download_or_import_guru_template(self):
+        operator = UserGuru.objects.create_user(
+            username="template-operator",
+            nip="910006",
+            nama_lengkap="Operator Template",
+            email="template-operator@example.test",
+            password="Operator!Pass734",
+            is_staff=True,
+        )
+        self.client.force_login(operator)
+        self.assertEqual(self.client.get(reverse("admin-users-template")).status_code, 404)
+        self.assertEqual(self.client.post(reverse("admin-users-import")).status_code, 404)
 
     def test_user_group_location_and_qr_crud(self):
         response = self.client.post(reverse("admin-user-add"), {

@@ -8,8 +8,23 @@
       <h1 class="mt-2 text-2xl font-semibold text-[#173f35]">{{ title }}</h1>
       <p class="mt-1 text-sm text-[#63736b]">{{ page.paginator.count }} data</p>
     </div>
-    <a class="button button-primary" href="{{ add_url }}">Tambah data</a>
+    <div class="flex flex-wrap gap-2">
+      {% if template_url %}<a class="button button-muted" href="{{ template_url }}">Unduh template Excel</a>{% endif %}
+      <a class="button button-primary" href="{{ add_url }}">Tambah data</a>
+    </div>
   </header>
+
+  {% if import_url %}
+    <form method="post" action="{{ import_url }}" enctype="multipart/form-data" class="mt-5 border border-[#dbe1dc] bg-white p-4 sm:p-5">
+      {% csrf_token %}
+      <label class="mb-2 block text-sm font-semibold text-[#173f35]" for="guru-import-file">Impor akun guru dari Excel</label>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <input id="guru-import-file" class="field" type="file" name="file" accept=".xlsx" required>
+        <button class="button button-primary shrink-0" type="submit">Impor data guru</button>
+      </div>
+      <p class="mt-2 text-xs leading-5 text-[#63736b]">Isi template dengan NIP, nama lengkap, email, dan kata sandi awal. Username dibuat dari NIP; role otomatis Guru. Maksimal 500 baris dan 5 MB. Jika ada kesalahan, seluruh impor dibatalkan.</p>
+    </form>
+  {% endif %}
 
   <form method="get" class="mt-6 flex flex-col gap-3 sm:flex-row">
     <label class="sr-only" for="record-search">Cari data</label>
