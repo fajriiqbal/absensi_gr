@@ -67,7 +67,7 @@
       <div class="hidden flex-wrap items-center justify-end gap-4 text-sm md:flex">
         <span class="text-[#52625b]">{{ request.user.nama_lengkap }}</span>
         {% if request.user.role == "admin" or request.user.is_superuser %}{% elif request.user.role == "kamad" %}<a href="{% url 'kamad-dashboard' %}" class="text-[#17634c] hover:underline">Dashboard Kamad</a><a href="{% url 'leave-report' %}" class="text-[#17634c] hover:underline">Rekap Izin</a>{% else %}<a href="{% url 'guru-scan' %}" class="text-[#17634c] hover:underline">Scan</a><a href="{% url 'guru-my-qr' %}" class="text-[#17634c] hover:underline">QR Kiosk</a><a href="{% url 'leave-requests' %}" class="text-[#17634c] hover:underline">Perizinan</a>{% endif %}
-        <a href="{% url 'school-qr-display' %}" class="text-[#17634c] hover:underline">Monitor TV</a>
+        {% if request.user.role == "guru" %}<a href="{% url 'teacher-history' %}" class="text-[#17634c] hover:underline">Riwayat</a>{% else %}<a href="{% url 'school-qr-display' %}" class="text-[#17634c] hover:underline">Monitor TV</a>{% endif %}
         <a href="{% url 'pwa-setup' %}" class="text-[#17634c] hover:underline">Setup PWA</a>
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="text-[#52625b] hover:text-[#17231e]">Keluar</button></form>
       </div>
@@ -236,7 +236,7 @@
       <a class="mobile-nav-item" href="{% url 'leave-requests' %}" aria-label="Perizinan"><i data-lucide="calendar-days"></i><span>Perizinan</span></a>
       <a class="mobile-nav-item" href="{% url 'guru-my-qr' %}" aria-label="QR Kiosk"><i data-lucide="qr-code"></i><span>QR Kiosk</span></a>
       <a class="mobile-scan-item" href="{% url 'guru-scan' %}" data-scan-shortcut aria-label="Scan presensi"><span class="mobile-scan-button"><i data-lucide="scan-line"></i></span><span>Scan</span></a>
-      <a class="mobile-nav-item" href="{% url 'school-qr-display' %}" aria-label="Monitor TV"><i data-lucide="monitor"></i><span>Monitor</span></a>
+      <a class="mobile-nav-item" href="{% url 'teacher-history' %}" aria-label="Riwayat presensi dan izin"{% if request.resolver_match.url_name == "teacher-history" %} aria-current="page"{% endif %}><i data-lucide="history"></i><span>Riwayat</span></a>
       <a class="mobile-nav-item" href="{% url 'pwa-setup' %}" aria-label="Setup perangkat"><i data-lucide="settings-2"></i><span>Setup</span></a>
     {% elif request.user.role == "kamad" %}
       <a class="mobile-nav-item" href="{% url 'leave-report' %}" aria-label="Rekap izin"><i data-lucide="file-spreadsheet"></i><span>Rekap izin</span></a>

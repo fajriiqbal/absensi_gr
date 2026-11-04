@@ -136,6 +136,59 @@ class LeaveRequestWorkflowTests(TestCase):
         )
         self.client.force_login(self.teacher)
 
+    def test_teacher_history_shows_only_own_attendance_and_leave_and_replaces_monitor_link(self):
+        another_teacher = UserGuru.objects.create_user(
+            username="history-other", nip="198024", nama_lengkap="Guru Lain", email="history-other@example.test", password="HistoryTeacher!734",
+        )
+        AbsensiLog.objects.create(
+            guru=self.teacher,
+            waktu_masuk=timezone.now(),
+            metode_scan="qr_tv",
+            status="terlambat",
+        )
+        AbsensiLog.objects.create(
+            guru=another_teacher,
+            waktu_masuk=timezone.now(),
+            metode_scan="qr_tv",
+            status="hadir",
+        )
+        PengajuanIzin.objects.create(
+            guru=self.teacher,
+            jenis_izin="izin",
+            tgl_mulai=timezone.localdate(),
+            tgl_selesai=timezone.localdate(),
+            alasan="Keperluan keluarga guru sendiri.",
+            file_bukti=SimpleUploadedFile("history-own.pdf", b"%PDF-1.4 own"),
+        )
+        PengajuanIzin.objects.create(
+            guru=another_teacher,
+            jenis_izin="izin",
+            tgl_mulai=timezone.localdate(),
+            tgl_selesai=timezone.localdate(),
+            alasan="Catatan rahasia guru lain.",
+            file_bukti=SimpleUploadedFile("history-other.pdf", b"%PDF-1.4 other"),
+        )
+
+        response = self.client.get(reverse("teacher-history"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Riwayat presensi")
+        self.assertContains(response, "Riwayat izin")
+        self.assertContains(response, "Terlambat")
+        self.assertContains(response, "Keperluan keluarga guru sendiri.")
+        self.assertContains(response, f'href="{reverse("teacher-history")}"')
+        self.assertNotContains(response, "Catatan rahasia guru lain.")
+        self.assertNotContains(response, reverse("school-qr-display"))
+        self.assertNotContains(response, "Pindai untuk presensi")
+
+    def test_non_teacher_cannot_open_teacher_history(self):
+        kamad = UserGuru.objects.create_user(
+            username="history-kamad", nip="900024", nama_lengkap="Kepala Madrasah", email="history-kamad@example.test", password="HistoryKamad!734", role="kamad"
+        )
+        self.client.force_login(kamad)
+
+        self.assertEqual(self.client.get(reverse("teacher-history")).status_code, 403)
+
     def test_teacher_submits_and_downloads_letter_after_approval(self):
         start = timezone.localdate() + timedelta(days=1)
         schedule_buddy = UserGuru.objects.create_user(

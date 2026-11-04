@@ -132,6 +132,18 @@ def leave_requests(request):
 
 
 @login_required
+def teacher_history(request):
+    if request.user.role != "guru":
+        return render(request, "403.html", status=403)
+    return render(request, "attendance/teacher_history.html", {
+        "attendance_logs": AbsensiLog.objects.filter(guru=request.user).order_by("-tanggal", "-waktu_masuk"),
+        "leave_requests": PengajuanIzin.objects.filter(guru=request.user)
+        .select_related("approved_by")
+        .order_by("-created_at"),
+    })
+
+
+@login_required
 def download_leave_letter(request, pk):
     if request.user.role != "guru":
         raise Http404

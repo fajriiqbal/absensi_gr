@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
 	path("admin/rekap-absensi/", views.attendance_report, name="attendance-report"),
 	path("guru/perijinan/", views.leave_requests, name="leave-requests"),
+	path("guru/riwayat/", views.teacher_history, name="teacher-history"),
 	path("guru/perijinan/<int:pk>/surat.pdf", views.download_leave_letter, name="leave-letter"),
 	path("guru/scan", views.scan_page, name="guru-scan"),
 	path("guru/my-qr", views.my_qr, name="guru-my-qr"),
