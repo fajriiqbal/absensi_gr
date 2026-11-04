@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Notifikasi WhatsApp | Admin{% endblock %}
+{% block title %}Pengaturan WhatsApp | Admin{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-4xl px-5 py-8 sm:py-10">
   <header class="border-b border-[#dbe1dc] pb-5">
-    <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Integrasi Notifikasi</p>
-    <h1 class="mt-2 text-2xl font-semibold text-[#173f35]">WhatsApp Cloud API</h1>
-    <p class="mt-1 text-sm text-[#63736b]">Atur nomor bisnis pengirim dan nomor Kamad yang menerima pemberitahuan pengajuan izin.</p>
+    <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Pengaturan Operator</p>
+    <h1 class="mt-2 text-2xl font-semibold text-[#173f35]">Notifikasi izin melalui WhatsApp</h1>
+    <p class="mt-1 text-sm text-[#63736b]">Simpan nomor Kamad tujuan. Operator dapat meninjau pengajuan lalu membuka WhatsApp dengan pesan yang sudah disiapkan.</p>
   </header>
 
   <div class="mt-6 border-l-4 {% if is_ready %}border-[#17634c] bg-[#e7f2eb]{% else %}border-[#a45642] bg-[#fff5ed]{% endif %} p-4 text-sm">
     {% if is_ready %}
-      <p class="font-semibold text-[#17634c]">Konfigurasi dasar sudah terisi.</p>
-      <p class="mt-1 text-[#52625b]">Notifikasi akan dikirim saat guru mengajukan izin. Pastikan nomor, token, dan template sudah aktif di Meta.</p>
+      <p class="font-semibold text-[#17634c]">Nomor WhatsApp Kamad sudah disimpan.</p>
+      <p class="mt-1 text-[#52625b]">Nomor tujuan: {{ form.instance.kamad_phone_number }}. Pengajuan baru tersedia di antrean notifikasi.</p>
     {% else %}
-      <p class="font-semibold text-[#8d4a2d]">Notifikasi belum siap.</p>
-      <p class="mt-1 text-[#52625b]">Isi nomor dan Phone Number ID di bawah, lalu atur WHATSAPP_ACCESS_TOKEN pada environment server.</p>
+      <p class="font-semibold text-[#8d4a2d]">Nomor tujuan belum diatur.</p>
+      <p class="mt-1 text-[#52625b]">Simpan nomor WhatsApp Kamad agar operator dapat menyiapkan pesan notifikasi.</p>
     {% endif %}
   </div>
 
@@ -30,16 +30,19 @@
     {% endfor %}
 
     <div class="border-t border-[#dbe1dc] pt-4 text-sm leading-6 text-[#52625b]">
-      <p class="font-semibold text-[#173f35]">Sebelum mengaktifkan</p>
-      <ul class="mt-2 list-disc space-y-1 pl-5">
-        <li>Nomor pengirim harus terdaftar pada WhatsApp Business Platform. Phone Number ID diambil dari WhatsApp Manager; nomor yang ditampilkan tidak menggantikan ID tersebut.</li>
-        <li>Token akses hanya disimpan di environment server sebagai <code>WHATSAPP_ACCESS_TOKEN</code>, bukan di database atau Git.</li>
-        <li>Buat dan setujui template kategori Utility dengan bahasa yang dipilih, berisi empat variabel body berurutan: nama guru, jenis izin, tanggal mulai, dan tanggal selesai.</li>
-        <li>Pastikan Kamad setuju menerima pemberitahuan WhatsApp (opt-in). Alasan izin dan lampiran tidak dikirim melalui WA.</li>
-      </ul>
+      <p class="font-semibold text-[#173f35]">Cara operator mengirim notifikasi</p>
+      <ol class="mt-2 list-decimal space-y-1 pl-5">
+        <li>Simpan nomor WhatsApp Kamad dengan kode negara, misalnya <code>+6281234567890</code> (nomor lokal berawalan 0 juga diterima).</li>
+        <li>Buka antrean izin menunggu, lalu tekan tombol <strong>Buka WhatsApp</strong> pada pengajuan.</li>
+        <li>Periksa pesan di WhatsApp dan tekan <strong>Kirim</strong>. Tautan WhatsApp tidak dapat mengirim pesan otomatis.</li>
+      </ol>
+      <p class="mt-2">Pesan hanya memuat nama guru, jenis izin, periode tanggal, dan tautan dashboard. Alasan dan lampiran tidak dibagikan.</p>
     </div>
 
-    <button class="button button-primary w-full sm:w-auto" type="submit">Simpan pengaturan</button>
+    <div class="flex flex-wrap gap-3">
+      <button class="button button-primary w-full sm:w-auto" type="submit">Simpan pengaturan</button>
+      <a class="button button-muted w-full sm:w-auto" href="{% url 'leave-notifications' %}">Buka antrean izin</a>
+    </div>
   </form>
 </div>
 {% endblock %}

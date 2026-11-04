@@ -1,8 +1,6 @@
 from datetime import timedelta
 from io import BytesIO
-import json
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -12,9 +10,8 @@ from openpyxl import load_workbook
 from PIL import Image
 
 from accounts.models import UserGuru
-from core.models import LokasiSekolah, TitikQRCetak, WhatsAppSettings
+from core.models import LokasiSekolah, TitikQRCetak
 from core.qr_engine import PRINTABLE_PREFIX, generate_dynamic_qr_token
-from core.whatsapp import WhatsAppDeliveryError
 
 from attendance.models import AbsensiLog, PengajuanIzin
 
@@ -197,67 +194,6 @@ class LeaveRequestWorkflowTests(TestCase):
         )
         self.client.force_login(another_teacher)
         self.assertEqual(self.client.get(reverse("leave-letter", args=(leave.pk,))).status_code, 404)
-
-    def test_leave_submission_sends_approved_whatsapp_template(self):
-        WhatsAppSettings.objects.create(
-            pk=1,
-            sender_phone_number_id="123456789012345",
-            sender_phone_number="+6281234567890",
-            kamad_phone_number="+6281234567891",
-            template_name="notifikasi_pengajuan_izin",
-            template_language="id",
-        )
-        api_response = BytesIO(b'{"messages":[{"id":"wamid.test"}]}')
-        api_response.status = 200
-        today = timezone.localdate()
-        with override_settings(WHATSAPP_ACCESS_TOKEN="test-access-token"), patch(
-            "core.whatsapp.urlopen", return_value=api_response
-        ) as send_request:
-            response = self.client.post(reverse("leave-requests"), {
-                "jenis_izin": "sakit",
-                "tgl_mulai": today.isoformat(),
-                "tgl_selesai": today.isoformat(),
-                "alasan": "Informasi medis yang tidak boleh dikirim ke WhatsApp.",
-                "file_bukti": SimpleUploadedFile("bukti.pdf", b"%PDF-1.4 bukti", content_type="application/pdf"),
-                "jadwal_pelajaran-TOTAL_FORMS": "0",
-                "jadwal_pelajaran-INITIAL_FORMS": "0",
-                "jadwal_pelajaran-MIN_NUM_FORMS": "0",
-                "jadwal_pelajaran-MAX_NUM_FORMS": "20",
-            })
-
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(send_request.call_count, 1)
-        request = send_request.call_args.args[0]
-        self.assertIn("/123456789012345/messages", request.full_url)
-        self.assertEqual(request.get_header("Authorization"), "Bearer test-access-token")
-        payload = json.loads(request.data)
-        self.assertEqual(payload["to"], "6281234567891")
-        self.assertEqual(payload["type"], "template")
-        self.assertEqual(len(payload["template"]["components"][0]["parameters"]), 4)
-        self.assertNotIn("Informasi medis", request.data.decode())
-
-    def test_whatsapp_failure_does_not_discard_leave_request(self):
-        today = timezone.localdate()
-        with patch(
-            "attendance.views.send_leave_notification",
-            side_effect=WhatsAppDeliveryError("Meta API error"),
-        ):
-            response = self.client.post(reverse("leave-requests"), {
-                "jenis_izin": "izin",
-                "tgl_mulai": today.isoformat(),
-                "tgl_selesai": today.isoformat(),
-                "alasan": "Keperluan keluarga.",
-                "file_bukti": SimpleUploadedFile("bukti.pdf", b"%PDF-1.4 bukti", content_type="application/pdf"),
-                "jadwal_pelajaran-TOTAL_FORMS": "0",
-                "jadwal_pelajaran-INITIAL_FORMS": "0",
-                "jadwal_pelajaran-MIN_NUM_FORMS": "0",
-                "jadwal_pelajaran-MAX_NUM_FORMS": "20",
-            })
-
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(PengajuanIzin.objects.filter(guru=self.teacher).count(), 1)
-        response = self.client.get(response["Location"])
-        self.assertContains(response, "notifikasi WhatsApp ke Kamad gagal dikirim")
 
     def test_invalid_date_range_does_not_create_request(self):
         today = timezone.localdate()

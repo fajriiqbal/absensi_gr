@@ -1,22 +1,31 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.conf import settings
 from django.utils import timezone
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from accounts.models import UserGuru
-from attendance.models import AbsensiLog
+from attendance.models import AbsensiLog, PengajuanIzin
 
 from .forms import WhatsAppSettingsForm
 from .models import TitikQRCetak, WhatsAppSettings
 from .qr_engine import generate_dynamic_qr_token
 from .qr_generator import generate_printable_qr_pdf
+from .whatsapp_links import build_leave_notification_link
 
 
 def admin_or_operator(user):
     return user.is_authenticated and (user.role == "admin" or user.is_superuser)
+
+
+def whatsapp_operator(user):
+    return user.is_authenticated and (
+        user.is_staff or user.role == "admin" or user.is_superuser
+    )
 
 
 @login_required
@@ -27,12 +36,13 @@ def admin_dashboard(request):
         "teacher_count": UserGuru.objects.filter(role="guru", is_active=True).count(),
         "today_attendance_count": AbsensiLog.objects.filter(tanggal=timezone.localdate()).count(),
         "active_qr_count": TitikQRCetak.objects.filter(is_active=True).count(),
+        "pending_leave_count": PengajuanIzin.objects.filter(status_approval="pending").count(),
     })
 
 
 @login_required
 def whatsapp_settings(request):
-    if not admin_or_operator(request.user):
+    if not whatsapp_operator(request.user):
         raise Http404
     config = WhatsAppSettings.get_settings()
     if request.method == "POST":
@@ -45,14 +55,31 @@ def whatsapp_settings(request):
         form = WhatsAppSettingsForm(instance=config)
     return render(request, "core/whatsapp_settings.html", {
         "form": form,
-        "is_ready": bool(
-            settings.WHATSAPP_ACCESS_TOKEN
-            and config.sender_phone_number_id
-            and config.sender_phone_number
-            and config.kamad_phone_number
-            and config.template_name
-            and config.template_language
-        ),
+        "is_ready": bool(config.kamad_phone_number),
+    })
+
+
+@login_required
+def leave_notifications(request):
+    if not whatsapp_operator(request.user):
+        raise Http404
+    config = WhatsAppSettings.get_settings()
+    paginator = Paginator(
+        PengajuanIzin.objects.filter(status_approval="pending")
+        .select_related("guru")
+        .order_by("-created_at"),
+        25,
+    )
+    page = paginator.get_page(request.GET.get("page"))
+    dashboard_url = request.build_absolute_uri(reverse("kamad-dashboard"))
+    if config.kamad_phone_number:
+        for leave in page.object_list:
+            leave.whatsapp_url = build_leave_notification_link(
+                config.kamad_phone_number, leave, dashboard_url
+            )
+    return render(request, "core/leave_notifications.html", {
+        "page": page,
+        "kamad_phone_number": config.kamad_phone_number,
     })
 
 

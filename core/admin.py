@@ -17,7 +17,7 @@ class TitikQRCetakAdmin(admin.ModelAdmin):
 
 @admin.register(WhatsAppSettings)
 class WhatsAppSettingsAdmin(admin.ModelAdmin):
-    list_display = ("sender_phone_number", "kamad_phone_number", "template_name", "updated_at")
+    list_display = ("kamad_phone_number", "updated_at")
     readonly_fields = ("updated_at",)
 
     def has_add_permission(self, request):

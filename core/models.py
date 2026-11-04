@@ -24,11 +24,7 @@ class TitikQRCetak(models.Model):
 
 
 class WhatsAppSettings(models.Model):
-    sender_phone_number_id = models.CharField(max_length=32, blank=True)
-    sender_phone_number = models.CharField(max_length=20, blank=True)
     kamad_phone_number = models.CharField(max_length=20, blank=True)
-    template_name = models.CharField(max_length=100, default="notifikasi_pengajuan_izin")
-    template_language = models.CharField(max_length=20, default="id")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Antrean Notifikasi Izin | Admin{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl px-5 py-8 sm:py-10">
+  <header class="flex flex-wrap items-end justify-between gap-4 border-b border-[#dbe1dc] pb-5">
+    <div>
+      <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Meja Operator</p>
+      <h1 class="mt-2 text-2xl font-semibold text-[#173f35]">Antrean notifikasi izin</h1>
+      <p class="mt-1 text-sm text-[#63736b]">Pengajuan menunggu persetujuan: {{ page.paginator.count }}</p>
+    </div>
+    <a class="button button-muted" href="{% url 'whatsapp-settings' %}">Pengaturan nomor Kamad</a>
+  </header>
+
+  {% if not kamad_phone_number %}
+    <div class="mt-6 border-l-4 border-[#a45642] bg-[#fff5ed] p-4 text-sm text-[#52625b]" role="status">
+      <p class="font-semibold text-[#8d4a2d]">Nomor WhatsApp Kamad belum diatur.</p>
+      <p class="mt-1">Isi nomor tujuan sebelum menyiapkan pesan WhatsApp.</p>
+    </div>
+  {% endif %}
+
+  <section class="mt-6 space-y-3" aria-label="Pengajuan izin menunggu">
+    {% for leave in page %}
+      <article class="flex flex-col gap-4 border border-[#dbe1dc] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0">
+          <h2 class="font-semibold text-[#173f35]">{{ leave.guru.nama_lengkap }}</h2>
+          <p class="mt-1 text-sm text-[#52625b]">{{ leave.get_jenis_izin_display }} &middot;
+            {{ leave.tgl_mulai|date:"d-m-Y" }}{% if leave.tgl_selesai != leave.tgl_mulai %} s.d. {{ leave.tgl_selesai|date:"d-m-Y" }}{% endif %}
+          </p>
+          <p class="mt-1 text-xs text-[#63736b]">Diajukan {{ leave.created_at|date:"d-m-Y H:i" }}</p>
+        </div>
+        {% if kamad_phone_number %}
+          <a class="button button-primary shrink-0" href="{{ leave.whatsapp_url }}" target="_blank" rel="noopener noreferrer">Buka WhatsApp</a>
+        {% else %}
+          <a class="button button-muted shrink-0" href="{% url 'whatsapp-settings' %}">Atur nomor dahulu</a>
+        {% endif %}
+      </article>
+    {% empty %}
+      <div class="border border-dashed border-[#b9c8bf] bg-white p-8 text-center">
+        <p class="font-semibold text-[#173f35]">Tidak ada pengajuan yang menunggu.</p>
+        <p class="mt-1 text-sm text-[#63736b]">Pengajuan izin baru akan muncul di halaman ini.</p>
+      </div>
+    {% endfor %}
+  </section>
+
+  {% if page.has_other_pages %}
+    <nav class="mt-6 flex items-center justify-between border-t border-[#dbe1dc] pt-4 text-sm" aria-label="Halaman antrean">
+      {% if page.has_previous %}<a class="text-[#17634c] hover:underline" href="?page={{ page.previous_page_number }}">Sebelumnya</a>{% else %}<span></span>{% endif %}
+      <span class="text-[#63736b]">Halaman {{ page.number }} dari {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="text-[#17634c] hover:underline" href="?page={{ page.next_page_number }}">Berikutnya</a>{% else %}<span></span>{% endif %}
+    </nav>
+  {% endif %}
+</div>
+{% endblock %}
