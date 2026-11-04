@@ -4,14 +4,69 @@
 <div class="mx-auto max-w-2xl px-5 py-10 text-center" x-data="teacherQr()" x-init="start()">
   <div class="hidden">{% csrf_token %}</div>
   <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Presensi Kiosk</p><h1 class="mt-2 text-2xl font-semibold text-[#173f35]">QR Guru</h1>
-  <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-[#63736b]">Tunjukkan QR ini ke petugas kiosk. Kode diperbarui otomatis dan hanya berlaku 45 detik.</p>
+  <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-[#63736b]">Tunjukkan QR ini ke petugas kiosk. QR diperbarui otomatis dan hanya berlaku 45 detik. Pastikan seluruh kotak QR terlihat oleh kamera.</p>
   <div class="mx-auto mt-7 inline-block rounded-md border border-[#dbe1dc] bg-white p-4"><div id="guru-qr" class="flex h-64 w-64 items-center justify-center"></div></div>
-  <p class="mt-4 text-sm text-[#63736b]">Kode berubah dalam <span class="font-semibold tabular-nums text-[#173f35]" x-text="remaining"></span> detik</p><p class="mt-3 min-h-5 text-sm text-[#a34431]" x-text="error"></p>
+  <p class="mt-4 text-sm text-[#63736b]">Kode berubah dalam <span class="font-semibold tabular-nums text-[#173f35]" x-text="remaining"></span> detik</p><p class="mt-3 min-h-5 text-sm text-[#a34431]" x-text="error" role="status" aria-live="polite"></p>
 </div>
 {% endblock %}
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-function teacherQr() { return { remaining: 45, error: '', start() { this.refresh(); setInterval(() => { this.remaining -= 1; if (this.remaining <= 0) this.refresh(); }, 1000); }, async refresh() { try { const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value; const response = await fetch('{% url "teacher-qr" %}', { method: 'POST', headers: { 'X-CSRFToken': csrf, 'Accept': 'application/json' } }); if (!response.ok) throw new Error(); const data = await response.json(); const holder = document.querySelector('#guru-qr'); holder.replaceChildren(); new QRCode(holder, { text: data.payload, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M }); this.remaining = data.ttl; this.error = ''; } catch { this.error = 'QR tidak dapat dimuat. Muat ulang halaman.'; this.remaining = 45; } } }; }
+function teacherQr() {
+  return {
+    remaining: 45,
+    error: '',
+    expiresAt: 0,
+    retryAt: 0,
+    refreshing: false,
+    timer: null,
+    start() {
+      this.refresh();
+      this.timer = window.setInterval(() => {
+        this.remaining = Math.max(0, Math.ceil((this.expiresAt - Date.now()) / 1000));
+        if (this.expiresAt && this.remaining === 0) this.refresh();
+        else if (!this.expiresAt && this.retryAt && Date.now() >= this.retryAt) this.refresh();
+      }, 500);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && this.expiresAt && Date.now() >= this.expiresAt) this.refresh();
+        else if (!document.hidden && !this.expiresAt && this.retryAt && Date.now() >= this.retryAt) this.refresh();
+      });
+    },
+    async refresh() {
+      if (this.refreshing) return;
+      this.refreshing = true;
+      try {
+        if (typeof QRCode === 'undefined') throw new Error('QR library is unavailable.');
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const response = await fetch('{% url "teacher-qr" %}', {
+          method: 'POST',
+          cache: 'no-store',
+          headers: { 'X-CSRFToken': csrf, 'Accept': 'application/json' }
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'QR tidak dapat dibuat.');
+        const holder = document.querySelector('#guru-qr');
+        holder.replaceChildren();
+        new QRCode(holder, {
+          text: data.payload,
+          width: 256,
+          height: 256,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+        this.expiresAt = Date.now() + (data.ttl * 1000);
+        this.retryAt = 0;
+        this.remaining = data.ttl;
+        this.error = '';
+      } catch {
+        this.expiresAt = 0;
+        this.retryAt = Date.now() + 5000;
+        this.remaining = 0;
+        this.error = 'QR tidak dapat dimuat. Periksa koneksi lalu muat ulang halaman.';
+      } finally {
+        this.refreshing = false;
+      }
+    }
+  };
+}
 </script>
 {% endblock %}

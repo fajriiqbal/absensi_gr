@@ -159,7 +159,9 @@ def my_qr(request):
 def teacher_qr_api(request):
     if request.user.role != "guru":
         return api_error("Akun ini tidak memiliki QR guru.", 403)
-    return JsonResponse({"payload": generate_teacher_qr_token(request.user), "ttl": 45})
+    response = JsonResponse({"payload": generate_teacher_qr_token(request.user), "ttl": 45})
+    response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    return response
 
 
 @require_POST

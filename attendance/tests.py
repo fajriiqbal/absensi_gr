@@ -11,7 +11,7 @@ from PIL import Image
 
 from accounts.models import UserGuru
 from core.models import LokasiSekolah, TitikQRCetak
-from core.qr_engine import PRINTABLE_PREFIX, generate_dynamic_qr_token, generate_teacher_qr_token
+from core.qr_engine import PRINTABLE_PREFIX, generate_dynamic_qr_token
 
 from attendance.models import AbsensiLog, PengajuanIzin
 
@@ -40,6 +40,12 @@ class AttendanceScanTests(TestCase):
         self.assertNotContains(response, 'id="selfie"')
         self.assertContains(response, 'id="glass-toast-region"')
         self.assertContains(response, "window.showGlassNotification(this.result, this.success ? 'success' : 'error')")
+
+    def test_teacher_qr_page_refreshes_expired_tokens(self):
+        response = self.client.get(reverse("guru-my-qr"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "visibilitychange")
+        self.assertContains(response, "cache: 'no-store'")
 
     def test_tv_qr_records_arrival_and_departure_once(self):
         payload = generate_dynamic_qr_token()
@@ -100,9 +106,10 @@ class AttendanceScanTests(TestCase):
 
         response = self.client.post(reverse("kiosk-scan"), {"qr_payload": "invalid"})
         self.assertEqual(response.status_code, 400)
-        response = self.client.post(reverse("kiosk-scan"), {
-            "qr_payload": generate_teacher_qr_token(self.teacher),
-        })
+        qr_response = self.client.post(reverse("teacher-qr"))
+        self.assertEqual(qr_response.status_code, 200)
+        self.assertIn("no-store", qr_response["Cache-Control"])
+        response = self.client.post(reverse("kiosk-scan"), {"qr_payload": qr_response.json()["payload"]})
         self.assertEqual(response.status_code, 200)
         self.assertIn("berhasil", response.json()["message"])
         log = AbsensiLog.objects.get(guru=self.teacher)

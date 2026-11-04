@@ -33,12 +33,13 @@
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
   let running = false;
   let processing = false;
+  const scanSize = Math.max(160, Math.min(240, Math.floor(Math.min(window.innerWidth - 48, 320) * 0.8)));
 
   async function startCamera() {
     try {
       await reader.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
+        { fps: 10, qrbox: { width: scanSize, height: scanSize } },
         handleQr,
         () => {}
       );
@@ -47,7 +48,7 @@
       cameraButton.disabled = true;
       cameraMessage.textContent = 'Arahkan kamera ke QR pada akun guru.';
     } catch {
-      cameraMessage.textContent = 'Kamera tidak tersedia. Periksa izin browser dan gunakan HTTPS.';
+      cameraMessage.textContent = 'Kamera tidak dapat dibuka. Izinkan akses kamera dan pastikan halaman menggunakan HTTPS.';
       window.showGlassNotification(cameraMessage.textContent, 'error');
     }
   }
@@ -61,21 +62,33 @@
         running = false;
       }
 
+      if (!payload.trim().startsWith('MTS-GURU-QR:')) {
+        resultMessage.textContent = 'QR ini bukan QR akun guru. Pindai QR dari menu QR Kiosk guru.';
+        resultMessage.className = 'mt-2 min-h-12 text-sm text-[#a34431]';
+        window.showGlassNotification(resultMessage.textContent, 'error');
+        cameraMessage.textContent = 'Tekan tombol untuk mencoba memindai kembali.';
+        return;
+      }
+
       const form = new FormData();
-      form.append('qr_payload', payload);
+      form.append('qr_payload', payload.trim());
       form.append('csrfmiddlewaretoken', csrfToken);
       const response = await fetch('{% url "kiosk-scan" %}', {
         method: 'POST',
+        cache: 'no-store',
         body: form,
         headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' }
       });
+      if (!response.headers.get('content-type')?.includes('application/json')) {
+        throw new Error('Respons server bukan JSON.');
+      }
       const data = await response.json();
       resultMessage.textContent = data.message || 'Pemindaian gagal.';
       resultMessage.className = `mt-2 min-h-12 text-sm ${response.ok ? 'text-[#17634c]' : 'text-[#a34431]'}`;
       window.showGlassNotification(resultMessage.textContent, response.ok ? 'success' : 'error');
       cameraMessage.textContent = 'Tekan tombol untuk memindai QR guru berikutnya.';
     } catch {
-      resultMessage.textContent = 'Koneksi gagal. Periksa jaringan lalu pindai kembali.';
+      resultMessage.textContent = 'Pemindaian gagal. Pastikan QR belum kedaluwarsa dan koneksi stabil, lalu coba lagi.';
       resultMessage.className = 'mt-2 min-h-12 text-sm text-[#a34431]';
       window.showGlassNotification(resultMessage.textContent, 'error');
       cameraMessage.textContent = 'Tekan tombol untuk mencoba kembali.';
