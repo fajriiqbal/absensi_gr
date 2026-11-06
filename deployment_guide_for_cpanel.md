@@ -66,4 +66,4 @@ WhiteNoise melayani file hasil `collectstatic` (termasuk CSS admin Django) melal
 3. Cocokkan traceback dengan konfigurasi: `ImproperlyConfigured` biasanya menandakan secret/key produksi belum diatur; `ModuleNotFoundError` berarti requirements belum terpasang di virtual environment aplikasi; error koneksi database berarti `DB_*`, database, atau hak aksesnya belum benar.
 4. Setelah memperbaiki konfigurasi atau menarik commit terbaru, restart Python App lagi.
 
-Jangan mengaktifkan `DJANGO_DEBUG=1` pada situs publik untuk melihat traceback. Bila perlu bantuan mendiagnosis, bagikan traceback dari log setelah menghapus password, secret key, dan data pribadi. Tanpa traceback dari hosting, penyebab spesifik HTTP 500 tidak dapat dipastikan dari sisi repository saja.
+Jangan mengaktifkan `DJANGO_DEBUG=1` pada situs publik untuk melihat traceback. Bila perlu bantuan mendiagnosis, bagikan traceback dari log setelah menghapus password, secret key, dan data pribadi. Tanpa traceback dari hosting, penyebab spesifik HTTP 500 tidak dapat dipastikan dari sisi repository saja. 
