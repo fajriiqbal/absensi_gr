@@ -106,7 +106,7 @@
       <a href="{% url 'role-home' %}" class="flex shrink-0 items-center gap-2 font-bold tracking-wide text-[#174d3d]"><img src="{% static 'app/images/logo-madrasah.png' %}?v=4" alt="Logo MTs Sunan Kalijaga Tulung" class="h-12 w-12 object-contain"><span>PRESENSI <span class="font-normal text-[#63736b]">/ {% if request.user.role == "admin" or request.user.is_superuser %}ADMIN{% elif request.user.role == "kamad" %}KAMAD{% elif request.user.role == "guru" %}GURU{% elif request.user.is_staff %}OPERATOR{% else %}GURU{% endif %}</span></span></a>
       <div class="hidden flex-wrap items-center justify-end gap-4 text-sm md:flex">
         <span class="text-[#52625b]">{{ request.user.nama_lengkap }}</span>
-        {% if request.user.role == "admin" or request.user.is_superuser %}{% elif request.user.role == "kamad" %}<a href="{% url 'kamad-dashboard' %}" class="text-[#17634c] hover:underline">Dashboard Kamad</a><a href="{% url 'leave-report' %}" class="text-[#17634c] hover:underline">Rekap Izin</a>{% else %}<a href="{% url 'guru-scan' %}" class="text-[#17634c] hover:underline">Scan</a><a href="{% url 'guru-my-qr' %}" class="text-[#17634c] hover:underline">QR Kiosk</a><a href="{% url 'leave-requests' %}" class="text-[#17634c] hover:underline">Perizinan</a>{% endif %}
+        {% if request.user.role == "admin" or request.user.is_superuser %}<a href="{% url 'leave-approvals' %}" class="text-[#17634c] hover:underline">Persetujuan Izin</a>{% elif request.user.role == "kamad" %}<a href="{% url 'kamad-dashboard' %}" class="text-[#17634c] hover:underline">Dashboard Kamad</a><a href="{% url 'leave-approvals' %}" class="text-[#17634c] hover:underline">Persetujuan Izin</a><a href="{% url 'leave-report' %}" class="text-[#17634c] hover:underline">Rekap Izin</a>{% elif request.user.is_staff and request.user.role != "guru" %}<a href="{% url 'leave-approvals' %}" class="text-[#17634c] hover:underline">Persetujuan Pulang Awal</a>{% else %}<a href="{% url 'guru-scan' %}" class="text-[#17634c] hover:underline">Scan</a><a href="{% url 'guru-my-qr' %}" class="text-[#17634c] hover:underline">QR Kiosk</a><a href="{% url 'leave-requests' %}" class="text-[#17634c] hover:underline">Perizinan</a>{% if request.user.is_staff %}<a href="{% url 'leave-approvals' %}" class="text-[#17634c] hover:underline">Persetujuan Pulang Awal</a>{% endif %}{% endif %}
         {% if request.user.role == "guru" %}<a href="{% url 'teacher-history' %}" class="text-[#17634c] hover:underline">Riwayat</a>{% else %}<a href="{% url 'school-qr-display' %}" class="text-[#17634c] hover:underline">Monitor TV</a>{% endif %}
         <a href="{% url 'pwa-setup' %}" class="text-[#17634c] hover:underline">Setup PWA</a>
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="text-[#52625b] hover:text-[#17231e]">Keluar</button></form>
@@ -145,6 +145,7 @@
           <summary>Perizinan &amp; Notifikasi</summary>
           <div class="admin-sidebar-submenu">
             <a class="admin-sidebar-link" href="{% url 'admin-leaves' %}" {% if request.resolver_match.url_name == "admin-leaves" or request.resolver_match.url_name == "admin-leave-add" or request.resolver_match.url_name == "admin-leave-edit" %}aria-current="page"{% endif %}>Data Perizinan</a>
+            <a class="admin-sidebar-link" href="{% url 'leave-approvals' %}" {% if request.resolver_match.url_name == "leave-approvals" %}aria-current="page"{% endif %}>Persetujuan Izin</a>
             <a class="admin-sidebar-link" href="{% url 'leave-notifications' %}" {% if request.resolver_match.url_name == "leave-notifications" %}aria-current="page"{% endif %}>Antrean WhatsApp</a>
             <a class="admin-sidebar-link" href="{% url 'whatsapp-settings' %}" {% if request.resolver_match.url_name == "whatsapp-settings" %}aria-current="page"{% endif %}>Pengaturan Nomor Kamad</a>
           </div>
@@ -162,6 +163,7 @@
         <details class="admin-sidebar-group" {% if request.resolver_match.url_name == "leave-notifications" or request.resolver_match.url_name == "whatsapp-settings" %}open{% endif %}>
           <summary>Perizinan &amp; Notifikasi</summary>
           <div class="admin-sidebar-submenu">
+            <a class="admin-sidebar-link" href="{% url 'leave-approvals' %}" {% if request.resolver_match.url_name == "leave-approvals" %}aria-current="page"{% endif %}>Persetujuan Pulang Awal</a>
             <a class="admin-sidebar-link" href="{% url 'leave-notifications' %}" {% if request.resolver_match.url_name == "leave-notifications" %}aria-current="page"{% endif %}>Antrean WhatsApp</a>
             <a class="admin-sidebar-link" href="{% url 'whatsapp-settings' %}" {% if request.resolver_match.url_name == "whatsapp-settings" %}aria-current="page"{% endif %}>Pengaturan Nomor Kamad</a>
           </div>
@@ -454,7 +456,7 @@
     {% if request.user.role == "admin" or request.user.is_superuser or request.user.is_staff and request.user.role != "guru" %}
       <a class="mobile-nav-item" href="{% url 'leave-notifications' %}" aria-label="Antrean notifikasi"><i data-lucide="message-circle"></i><span>Notifikasi</span></a>
       <a class="mobile-nav-item" href="{% url 'whatsapp-settings' %}" aria-label="Pengaturan WhatsApp"><i data-lucide="settings"></i><span>Nomor WA</span></a>
-      <a class="mobile-scan-item" href="{% url 'leave-notifications' %}" aria-label="Antrean notifikasi izin"><span class="mobile-scan-button"><i data-lucide="message-circle"></i></span><span>Antrean</span></a>
+      <a class="mobile-scan-item" href="{% url 'leave-approvals' %}" aria-label="Persetujuan izin"><span class="mobile-scan-button"><i data-lucide="clipboard-check"></i></span><span>Approval</span></a>
       <a class="mobile-nav-item" href="{% url 'kiosk-scan-page' %}" aria-label="Pindai QR guru"><i data-lucide="scan-line"></i><span>Scan QR</span></a>
       <a class="mobile-nav-item" href="{% url 'school-qr-display' %}" aria-label="Monitor TV"><i data-lucide="monitor"></i><span>Monitor</span></a>
     {% elif request.user.role == "guru" %}
@@ -462,11 +464,11 @@
       <a class="mobile-nav-item" href="{% url 'guru-my-qr' %}" aria-label="QR Kiosk"><i data-lucide="qr-code"></i><span>QR Kiosk</span></a>
       <a class="mobile-scan-item" href="{% url 'guru-scan' %}" data-scan-shortcut aria-label="Scan presensi"><span class="mobile-scan-button"><i data-lucide="scan-line"></i></span><span>Scan</span></a>
       <a class="mobile-nav-item" href="{% url 'teacher-history' %}" aria-label="Riwayat presensi dan izin"{% if request.resolver_match.url_name == "teacher-history" %} aria-current="page"{% endif %}><i data-lucide="history"></i><span>Riwayat</span></a>
-      <a class="mobile-nav-item" href="{% url 'pwa-setup' %}" aria-label="Setup perangkat"><i data-lucide="settings-2"></i><span>Setup</span></a>
+      {% if request.user.is_staff %}<a class="mobile-nav-item" href="{% url 'leave-approvals' %}" aria-label="Persetujuan pulang awal"><i data-lucide="clipboard-check"></i><span>Approval</span></a>{% else %}<a class="mobile-nav-item" href="{% url 'pwa-setup' %}" aria-label="Setup perangkat"><i data-lucide="settings-2"></i><span>Setup</span></a>{% endif %}
     {% elif request.user.role == "kamad" %}
       <a class="mobile-nav-item" href="{% url 'leave-report' %}" aria-label="Rekap izin"><i data-lucide="file-spreadsheet"></i><span>Rekap izin</span></a>
       <a class="mobile-nav-item" href="{% url 'kamad-dashboard' %}" aria-label="Dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
-      <a class="mobile-scan-item" href="{% url 'kamad-dashboard' %}#approval" aria-label="Approval izin"><span class="mobile-scan-button"><i data-lucide="clipboard-check"></i></span><span>Approval</span></a>
+      <a class="mobile-scan-item" href="{% url 'leave-approvals' %}" aria-label="Approval izin"><span class="mobile-scan-button"><i data-lucide="clipboard-check"></i></span><span>Approval</span></a>
       <a class="mobile-nav-item" href="{% url 'school-qr-display' %}" aria-label="Monitor TV"><i data-lucide="monitor"></i><span>Monitor</span></a>
       <a class="mobile-nav-item" href="{% url 'pwa-setup' %}" aria-label="Setup perangkat"><i data-lucide="settings-2"></i><span>Setup</span></a>
     {% else %}

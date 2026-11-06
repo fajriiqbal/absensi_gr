@@ -1,33 +1,95 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet, inlineformset_factory
+from django.utils import timezone
 
 from accounts.models import UserGuru
+from core.models import JadwalWaktuPresensiGuru, PengaturanWaktuPresensi
 from .models import JadwalPelajaranIzin, PengajuanIzin
 
 
 class PengajuanIzinForm(forms.ModelForm):
     class Meta:
         model = PengajuanIzin
-        fields = ("jenis_izin", "tgl_mulai", "tgl_selesai", "alasan", "file_bukti")
+        fields = (
+            "jenis_izin",
+            "tgl_mulai",
+            "tgl_selesai",
+            "jam_mulai_pulang_diminta",
+            "jam_pulang_diminta",
+            "alasan",
+            "file_bukti",
+        )
         widgets = {
             "jenis_izin": forms.Select(attrs={"class": "field"}),
             "tgl_mulai": forms.DateInput(attrs={"class": "field", "type": "date"}),
             "tgl_selesai": forms.DateInput(attrs={"class": "field", "type": "date"}),
+            "jam_mulai_pulang_diminta": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
+            "jam_pulang_diminta": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
             "alasan": forms.Textarea(attrs={"class": "field", "rows": 4, "maxlength": 2000}),
             "file_bukti": forms.ClearableFileInput(attrs={"class": "field", "accept": ".pdf,.jpg,.jpeg,.png"}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["jam_mulai_pulang_diminta"].required = False
+        self.fields["jam_pulang_diminta"].required = False
+        self.fields["file_bukti"].required = (
+            self.data.get("jenis_izin") != "pulang_awal"
+            if self.is_bound
+            else self.initial.get("jenis_izin") != "pulang_awal"
+        )
+
     def clean(self):
         cleaned_data = super().clean()
+        leave_type = cleaned_data.get("jenis_izin")
         start = cleaned_data.get("tgl_mulai")
         end = cleaned_data.get("tgl_selesai")
         if start and end and end < start:
             self.add_error("tgl_selesai", "Tanggal selesai tidak boleh sebelum tanggal mulai.")
+        if leave_type == "pulang_awal":
+            if start and end and start != end:
+                self.add_error("tgl_selesai", "Izin pulang lebih awal hanya berlaku untuk satu tanggal.")
+            if start and start < timezone.localdate():
+                self.add_error("tgl_mulai", "Tanggal izin pulang lebih awal tidak boleh sudah lewat.")
+            checkout_start = cleaned_data.get("jam_mulai_pulang_diminta")
+            departure = cleaned_data.get("jam_pulang_diminta")
+            if checkout_start and checkout_start <= PengaturanWaktuPresensi.get_settings().batas_terlambat:
+                self.add_error(
+                    "jam_mulai_pulang_diminta",
+                    "Presensi pulang harus dibuka setelah batas waktu tepat waktu.",
+                )
+            if checkout_start and departure and checkout_start >= departure:
+                self.add_error("jam_pulang_diminta", "Jam pulang harus setelah presensi pulang dibuka.")
+            if (
+                start == timezone.localdate()
+                and checkout_start
+                and timezone.localtime().time().replace(tzinfo=None) >= checkout_start
+            ):
+                self.add_error("jam_mulai_pulang_diminta", "Jam presensi pulang yang diminta sudah lewat.")
+            if start and self.instance.guru_id:
+                existing_request = PengajuanIzin.objects.filter(
+                    guru=self.instance.guru,
+                    jenis_izin="pulang_awal",
+                    tgl_mulai=start,
+                    status_approval__in=("pending", "disetujui"),
+                )
+                if self.instance.pk:
+                    existing_request = existing_request.exclude(pk=self.instance.pk)
+                if existing_request.exists() or JadwalWaktuPresensiGuru.objects.filter(
+                    guru=self.instance.guru,
+                    tanggal=start,
+                ).exists():
+                    self.add_error("tgl_mulai", "Sudah ada pengajuan atau jadwal pulang khusus untuk tanggal tersebut.")
+        else:
+            cleaned_data["jam_mulai_pulang_diminta"] = None
+            cleaned_data["jam_pulang_diminta"] = None
         return cleaned_data
 
     def clean_file_bukti(self):
-        evidence = self.cleaned_data["file_bukti"]
+        evidence = self.cleaned_data.get("file_bukti")
+        if not evidence:
+            return evidence
         if evidence.size > 5 * 1024 * 1024:
             raise forms.ValidationError("Ukuran lampiran maksimal 5 MB.")
         extension = evidence.name.rsplit(".", 1)[-1].lower() if "." in evidence.name else ""

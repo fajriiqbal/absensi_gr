@@ -36,6 +36,7 @@ Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python
 - Kelola lokasi sekolah: `/admin/manajemen/lokasi`
 - Kelola titik QR cetak: `/admin/manajemen/titik-qr`
 - Antrean notifikasi izin (admin/operator): `/admin/notifikasi-perizinan`
+- Persetujuan izin pulang lebih awal (Kamad/TU): `/admin/persetujuan-izin`
 - Pengaturan nomor WhatsApp Kamad: `/admin/pengaturan-whatsapp`
 - Rekap absensi bulanan per guru (Excel): `/admin/rekap-absensi/`
 - Cetak QR poster (admin/operator): `/admin/cetak-qr`
@@ -46,7 +47,7 @@ Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python
 - Dashboard Kamad: `/kamad/dashboard`
 - Histori perizinan bulanan Kamad (Excel): `/kamad/rekap-perizinan/`
 
-Gunakan akun dengan role `admin` untuk Dashboard Admin dan seluruh CRUD akun, grup, presensi, perizinan, lokasi, dan titik QR. Petugas dengan akses staff dapat membuka `/admin/notifikasi-perizinan` dan `/admin/pengaturan-whatsapp` untuk mengelola notifikasi, serta `/kiosk/scan` untuk memindai QR guru. Akun `guru` hanya mendapat halaman scan/QR kiosk; akun `kamad` mendapat dashboard monitoring dan approval. Monitor TV dapat dibuka tanpa login.
+Gunakan akun dengan role `admin` untuk Dashboard Admin dan seluruh CRUD akun, grup, presensi, perizinan, lokasi, dan titik QR. Petugas dengan akses staff dapat membuka `/admin/notifikasi-perizinan` dan `/admin/pengaturan-whatsapp` untuk mengelola notifikasi, `/admin/persetujuan-izin` untuk menyetujui atau menolak izin pulang lebih awal, serta `/kiosk/scan` untuk memindai QR guru. Kamad dapat memproses seluruh jenis pengajuan dari dashboard dan halaman persetujuan. Monitor TV dapat dibuka tanpa login.
 
 ### Notifikasi izin melalui WhatsApp
 
@@ -54,7 +55,7 @@ Fitur notifikasi menggunakan tautan gratis `wa.me`, bukan WhatsApp Cloud API. Ad
 
 Pesan hanya berisi nama guru, jenis izin, tanggal izin, dan tautan ke dashboard Kamad. Alasan izin serta lampiran bukti tidak disertakan. Nomor lokal yang berawalan 0 otomatis dinormalisasi ke format internasional Indonesia `+62`.
 
-Guru mengajukan izin pada `/guru/perijinan/` dengan mengisi tanggal, alasan, dan lampiran bukti PDF/JPG/PNG (maksimal 5 MB). Setiap pengajuan dapat memuat beberapa rincian jadwal: hari/tanggal, mapel dan jam yang diampu, mapel/jam lukiran, keterangan kelas (contoh `VII-A`), serta guru rekan. Kamad melihat rincian tersebut saat approval. Setelah disetujui, guru dapat mengunduh surat persetujuan PDF dari riwayatnya; rekap Excel Kamad menyertakan sheet rincian jadwal.
+Guru mengajukan izin pada `/guru/perijinan/` dengan mengisi tanggal, alasan, dan lampiran bukti PDF/JPG/PNG (maksimal 5 MB). Untuk izin pulang lebih awal, pilih jenis **Izin Pulang Lebih Awal**, isi satu tanggal, jam dibukanya presensi pulang, jam pulang yang diminta, dan alasan; lampiran tidak wajib. Kamad dapat menyetujui atau menolak semua jenis izin, sedangkan petugas dengan akses staff dapat memproses izin pulang lebih awal. Jadwal per guru baru berlaku setelah disetujui dan hanya untuk tanggal yang diajukan; guru lain tetap mengikuti jadwal sekolah. Pengajuan izin biasa tetap dapat memuat rincian jadwal pengalihan pelajaran dan, setelah disetujui, menyediakan surat persetujuan PDF untuk guru.
 
 QR TV ditandatangani HS256 dan berlaku 15 detik. QR poster membutuhkan koordinat GPS dalam radius lokasi sekolah; selfie tidak wajib. Jika diunggah, selfie harus JPEG/PNG/WEBP maksimal 5 MB. Koordinat berasal dari Geolocation API browser dan HTTPS diperlukan di luar localhost.
 

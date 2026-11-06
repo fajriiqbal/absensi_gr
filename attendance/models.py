@@ -49,6 +49,7 @@ class PengajuanIzin(models.Model):
         ("izin", "Izin Personal"),
         ("dinas_luar", "Dinas Luar"),
         ("cuti", "Cuti"),
+        ("pulang_awal", "Izin Pulang Lebih Awal"),
     )
     APPROVAL_CHOICES = (
         ("pending", "Menunggu Persetujuan"),
@@ -60,8 +61,10 @@ class PengajuanIzin(models.Model):
     jenis_izin = models.CharField(max_length=20, choices=JENIS_CHOICES)
     tgl_mulai = models.DateField()
     tgl_selesai = models.DateField()
+    jam_mulai_pulang_diminta = models.TimeField(null=True, blank=True)
+    jam_pulang_diminta = models.TimeField(null=True, blank=True)
     alasan = models.TextField()
-    file_bukti = models.FileField(upload_to="dokumen_izin/", storage=encrypted_private_storage)
+    file_bukti = models.FileField(upload_to="dokumen_izin/", storage=encrypted_private_storage, blank=True)
     status_approval = models.CharField(max_length=20, choices=APPROVAL_CHOICES, default="pending")
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="approvals")
     approved_at = models.DateTimeField(null=True, blank=True)
@@ -76,6 +79,19 @@ class PengajuanIzin(models.Model):
         super().clean()
         if self.tgl_mulai and self.tgl_selesai and self.tgl_selesai < self.tgl_mulai:
             raise ValidationError({"tgl_selesai": "Tanggal selesai tidak boleh sebelum tanggal mulai."})
+        if self.jenis_izin == "pulang_awal":
+            errors = {}
+            if self.tgl_mulai and self.tgl_selesai and self.tgl_mulai != self.tgl_selesai:
+                errors["tgl_selesai"] = "Izin pulang lebih awal hanya berlaku untuk satu tanggal."
+            if not self.jam_mulai_pulang_diminta:
+                errors["jam_mulai_pulang_diminta"] = "Jam mulai presensi pulang wajib diisi."
+            if not self.jam_pulang_diminta:
+                errors["jam_pulang_diminta"] = "Jam pulang yang diminta wajib diisi."
+            if self.jam_mulai_pulang_diminta and self.jam_pulang_diminta:
+                if self.jam_mulai_pulang_diminta >= self.jam_pulang_diminta:
+                    errors["jam_pulang_diminta"] = "Jam pulang harus setelah presensi pulang dibuka."
+            if errors:
+                raise ValidationError(errors)
 
     def __str__(self):
         return f"{self.guru.nama_lengkap} - {self.get_jenis_izin_display()}"

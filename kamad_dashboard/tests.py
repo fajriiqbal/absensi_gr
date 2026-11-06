@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 from io import BytesIO
 from tempfile import TemporaryDirectory
 
@@ -10,6 +10,7 @@ from openpyxl import load_workbook
 
 from accounts.models import UserGuru
 from attendance.models import JadwalPelajaranIzin, PengajuanIzin
+from core.models import JadwalWaktuPresensiGuru
 
 
 class ApprovalTests(TestCase):
@@ -46,6 +47,121 @@ class ApprovalTests(TestCase):
         leave.refresh_from_db()
         self.assertEqual(leave.status_approval, "disetujui")
         self.assertEqual(leave.approved_by, kamad)
+
+    def test_kamad_and_tu_can_approve_early_departure_requests(self):
+        kamad = UserGuru.objects.create_user(
+            username="early-leave-kamad",
+            nip="900003",
+            nama_lengkap="Kepala",
+            email="early-kamad@example.test",
+            password="test-password-123",
+            role="kamad",
+        )
+        operator = UserGuru.objects.create_user(
+            username="early-leave-operator",
+            nip="900004",
+            nama_lengkap="Tata Usaha",
+            email="early-tu@example.test",
+            password="test-password-123",
+            is_staff=True,
+        )
+        teacher = UserGuru.objects.create_user(
+            username="early-leave-teacher",
+            nip="900005",
+            nama_lengkap="Guru",
+            email="early-teacher@example.test",
+            password="test-password-123",
+        )
+        other_teacher = UserGuru.objects.create_user(
+            username="early-leave-other",
+            nip="900006",
+            nama_lengkap="Guru Lain",
+            email="early-other@example.test",
+            password="test-password-123",
+        )
+        departure_date = timezone.localdate() + timedelta(days=1)
+
+        def create_request(guru, start, departure):
+            return PengajuanIzin.objects.create(
+                guru=guru,
+                jenis_izin="pulang_awal",
+                tgl_mulai=departure_date,
+                tgl_selesai=departure_date,
+                jam_mulai_pulang_diminta=start,
+                jam_pulang_diminta=departure,
+                alasan="Keperluan keluarga.",
+            )
+
+        tu_request = create_request(teacher, time(8, 45), time(9, 0))
+        kamad_request = create_request(other_teacher, time(10, 45), time(11, 0))
+
+        self.client.force_login(operator)
+        queue = self.client.get(reverse("leave-approvals"))
+        self.assertEqual(queue.status_code, 200)
+        self.assertContains(queue, teacher.nama_lengkap)
+        self.assertContains(queue, other_teacher.nama_lengkap)
+        response = self.client.post(reverse("approve-leave", args=(tu_request.pk,)), {"decision": "disetujui"})
+        self.assertEqual(response.status_code, 200)
+        tu_request.refresh_from_db()
+        self.assertEqual(tu_request.approved_by, operator)
+        self.assertEqual(
+            JadwalWaktuPresensiGuru.objects.get(guru=teacher, tanggal=departure_date).jam_pulang,
+            time(9, 0),
+        )
+
+        self.client.force_login(kamad)
+        response = self.client.post(reverse("approve-leave", args=(kamad_request.pk,)), {"decision": "disetujui"})
+        self.assertEqual(response.status_code, 200)
+        kamad_request.refresh_from_db()
+        self.assertEqual(kamad_request.approved_by, kamad)
+        self.assertEqual(
+            JadwalWaktuPresensiGuru.objects.get(guru=other_teacher, tanggal=departure_date).jam_pulang,
+            time(11, 0),
+        )
+
+    def test_operator_cannot_approve_regular_leave(self):
+        operator = UserGuru.objects.create_user(
+            username="regular-leave-operator",
+            nip="900007",
+            nama_lengkap="TU",
+            email="regular-tu@example.test",
+            password="test-password-123",
+            is_staff=True,
+        )
+        teacher = UserGuru.objects.create_user(
+            username="regular-leave-teacher",
+            nip="900008",
+            nama_lengkap="Guru",
+            email="regular-teacher@example.test",
+            password="test-password-123",
+        )
+        leave = PengajuanIzin.objects.create(
+            guru=teacher,
+            jenis_izin="izin",
+            tgl_mulai=timezone.localdate(),
+            tgl_selesai=timezone.localdate(),
+            alasan="Keperluan.",
+            file_bukti="bukti.pdf",
+        )
+        self.client.force_login(operator)
+
+        response = self.client.post(reverse("approve-leave", args=(leave.pk,)), {"decision": "disetujui"})
+
+        self.assertEqual(response.status_code, 403)
+        leave.refresh_from_db()
+        self.assertEqual(leave.status_approval, "pending")
+
+    def test_teacher_cannot_open_approval_queue(self):
+        teacher = UserGuru.objects.create_user(
+            username="approval-queue-teacher",
+            nip="900009",
+            nama_lengkap="Guru",
+            email="approval-teacher@example.test",
+            password="test-password-123",
+        )
+        self.client.force_login(teacher)
+
+        self.assertEqual(self.client.get(reverse("leave-approvals")).status_code, 404)
 
 
 class LeaveReportTests(TestCase):

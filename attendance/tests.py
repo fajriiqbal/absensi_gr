@@ -13,6 +13,7 @@ from PIL import Image
 from accounts.models import UserGuru
 from core.models import (
     JadwalWaktuPresensiKhusus,
+    JadwalWaktuPresensiGuru,
     JadwalWaktuPresensiMingguan,
     LokasiSekolah,
     PengaturanWaktuPresensi,
@@ -193,6 +194,52 @@ class AttendanceScanTests(TestCase):
         log, event = record_attendance_event(self.teacher, method="qr_tv", now=at(11, 0))
         self.assertEqual(event, "pulang")
         self.assertEqual(log.status_pulang, "tepat_waktu")
+
+    def test_teacher_specific_departure_overrides_global_schedule_for_that_teacher_only(self):
+        settings_obj = PengaturanWaktuPresensi.objects.get(pk=1)
+        settings_obj.jam_mulai_masuk = time(5, 0)
+        settings_obj.batas_terlambat = time(7, 30)
+        settings_obj.jam_mulai_pulang = time(12, 0)
+        settings_obj.jam_pulang_normal = time(13, 40)
+        settings_obj.save()
+        today = timezone.localdate()
+        JadwalWaktuPresensiKhusus.objects.create(
+            tanggal=today,
+            jam_mulai_pulang=time(12, 0),
+            jam_pulang=time(13, 0),
+            keterangan="Jadwal umum",
+        )
+        JadwalWaktuPresensiGuru.objects.create(
+            guru=self.teacher,
+            tanggal=today,
+            jam_mulai_pulang=time(8, 45),
+            jam_pulang=time(9, 0),
+        )
+        other_teacher = UserGuru.objects.create_user(
+            username="other-schedule-teacher",
+            nip="198004",
+            nama_lengkap="Guru Jadwal Umum",
+            email="other-schedule@example.test",
+            password="test-password-123",
+        )
+        local_timezone = timezone.get_current_timezone()
+
+        def at(hour, minute):
+            return timezone.make_aware(datetime.combine(today, time(hour, minute)), local_timezone)
+
+        record_attendance_event(self.teacher, method="qr_tv", now=at(7, 0))
+        with self.assertRaisesMessage(AttendanceScheduleError, "dibuka pukul 08:45"):
+            record_attendance_event(self.teacher, method="qr_tv", now=at(8, 44))
+        log, event = record_attendance_event(self.teacher, method="qr_tv", now=at(9, 0))
+        self.assertEqual(event, "pulang")
+        self.assertEqual(log.status_pulang, "tepat_waktu")
+
+        record_attendance_event(other_teacher, method="qr_tv", now=at(7, 0))
+        with self.assertRaisesMessage(AttendanceScheduleError, "dibuka pukul 12:00"):
+            record_attendance_event(other_teacher, method="qr_tv", now=at(9, 0))
+        log, event = record_attendance_event(other_teacher, method="qr_tv", now=at(12, 0))
+        self.assertEqual(event, "pulang")
+        self.assertEqual(log.status_pulang, "pulang_cepat")
 
     def test_printed_qr_enforces_geofence_but_not_selfie(self):
         LokasiSekolah.objects.create(latitude=0, longitude=0, radius_toleransi_meter=100)
@@ -434,6 +481,47 @@ class LeaveRequestWorkflowTests(TestCase):
         )
         self.client.force_login(another_teacher)
         self.assertEqual(self.client.get(reverse("leave-letter", args=(leave.pk,))).status_code, 404)
+
+    def test_teacher_submits_early_departure_request_without_evidence(self):
+        departure_date = timezone.localdate() + timedelta(days=1)
+        response = self.client.post(reverse("leave-requests"), {
+            "jenis_izin": "pulang_awal",
+            "tgl_mulai": departure_date.isoformat(),
+            "tgl_selesai": departure_date.isoformat(),
+            "jam_mulai_pulang_diminta": "08:45",
+            "jam_pulang_diminta": "09:00",
+            "alasan": "Keperluan keluarga yang mendesak.",
+            "jadwal_pelajaran-TOTAL_FORMS": "0",
+            "jadwal_pelajaran-INITIAL_FORMS": "0",
+            "jadwal_pelajaran-MIN_NUM_FORMS": "0",
+            "jadwal_pelajaran-MAX_NUM_FORMS": "20",
+        })
+
+        self.assertRedirects(response, reverse("leave-requests"))
+        leave = PengajuanIzin.objects.get(guru=self.teacher, jenis_izin="pulang_awal")
+        self.assertEqual(leave.status_approval, "pending")
+        self.assertEqual(leave.jam_mulai_pulang_diminta, time(8, 45))
+        self.assertEqual(leave.jam_pulang_diminta, time(9, 0))
+        self.assertFalse(leave.file_bukti)
+
+    def test_early_departure_request_requires_one_date_and_valid_times(self):
+        departure_date = timezone.localdate() + timedelta(days=1)
+        response = self.client.post(reverse("leave-requests"), {
+            "jenis_izin": "pulang_awal",
+            "tgl_mulai": departure_date.isoformat(),
+            "tgl_selesai": (departure_date + timedelta(days=1)).isoformat(),
+            "jam_mulai_pulang_diminta": "08:45",
+            "jam_pulang_diminta": "09:00",
+            "alasan": "Keperluan keluarga.",
+            "jadwal_pelajaran-TOTAL_FORMS": "0",
+            "jadwal_pelajaran-INITIAL_FORMS": "0",
+            "jadwal_pelajaran-MIN_NUM_FORMS": "0",
+            "jadwal_pelajaran-MAX_NUM_FORMS": "20",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PengajuanIzin.objects.filter(guru=self.teacher).count(), 0)
+        self.assertContains(response, "hanya berlaku untuk satu tanggal")
 
     def test_invalid_date_range_does_not_create_request(self):
         today = timezone.localdate()

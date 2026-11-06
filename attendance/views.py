@@ -100,25 +100,27 @@ def leave_requests(request):
     leave_instance = PengajuanIzin(guru=request.user)
     submission_error = False
     if request.method == "POST":
-        form = PengajuanIzinForm(request.POST, request.FILES)
+        form = PengajuanIzinForm(request.POST, request.FILES, instance=leave_instance)
         schedule_formset = JadwalPelajaranIzinFormSetFactory(request.POST, instance=leave_instance)
         form_is_valid = form.is_valid()
         if form_is_valid:
             leave_instance.tgl_mulai = form.cleaned_data["tgl_mulai"]
             leave_instance.tgl_selesai = form.cleaned_data["tgl_selesai"]
-        schedules_are_valid = schedule_formset.is_valid()
+        is_early_departure = form.cleaned_data.get("jenis_izin") == "pulang_awal" if form_is_valid else False
+        schedules_are_valid = True if is_early_departure else schedule_formset.is_valid()
         if form_is_valid and schedules_are_valid:
             with transaction.atomic():
                 leave = form.save(commit=False)
                 leave.guru = request.user
                 leave.save()
-                schedule_formset.instance = leave
-                schedule_formset.save()
+                if not is_early_departure:
+                    schedule_formset.instance = leave
+                    schedule_formset.save()
             messages.success(request, "Pengajuan izin berhasil dikirim untuk persetujuan.")
             return redirect("leave-requests")
         submission_error = True
     else:
-        form = PengajuanIzinForm()
+        form = PengajuanIzinForm(instance=leave_instance)
         schedule_formset = JadwalPelajaranIzinFormSetFactory(instance=leave_instance)
     return render(request, "attendance/leave_requests.html", {
         "form": form,

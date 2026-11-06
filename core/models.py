@@ -110,6 +110,35 @@ class JadwalWaktuPresensiMingguan(models.Model):
         return f"{self.get_hari_display()} - Pulang {self.jam_pulang:%H:%M}"
 
 
+class JadwalWaktuPresensiGuru(models.Model):
+    guru = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jadwal_waktu_presensi",
+        limit_choices_to={"role": "guru"},
+        verbose_name="Guru",
+    )
+    tanggal = models.DateField(verbose_name="Tanggal")
+    jam_mulai_pulang = models.TimeField(verbose_name="Presensi pulang dibuka")
+    jam_pulang = models.TimeField(verbose_name="Jam pulang")
+
+    class Meta:
+        ordering = ("tanggal", "guru__nama_lengkap")
+        constraints = [
+            models.UniqueConstraint(fields=("guru", "tanggal"), name="unique_jadwal_presensi_guru_tanggal"),
+        ]
+        verbose_name = "Jadwal waktu presensi guru"
+        verbose_name_plural = "Jadwal waktu presensi guru"
+
+    def clean(self):
+        super().clean()
+        if self.jam_mulai_pulang and self.jam_pulang and self.jam_mulai_pulang >= self.jam_pulang:
+            raise ValidationError({"jam_pulang": "Jam pulang harus setelah presensi pulang dibuka."})
+
+    def __str__(self):
+        return f"{self.guru} - {self.tanggal:%d-%m-%Y} - Pulang {self.jam_pulang:%H:%M}"
+
+
 class JadwalWaktuPresensiKhusus(models.Model):
     tanggal = models.DateField(unique=True)
     jam_mulai_pulang = models.TimeField(verbose_name="Presensi pulang dibuka")

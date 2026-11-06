@@ -16,7 +16,7 @@
         </h1>
 
         <p class="mt-2 max-w-2xl text-sm leading-6 text-[#63736b]">
-            Ajukan izin dan pantau keputusan Kepala Madrasah.
+            Ajukan izin, termasuk permohonan pulang lebih awal, dan pantau keputusan persetujuan.
         </p>
     </header>
 
@@ -28,7 +28,7 @@
                     Buat pengajuan
                 </h2>
                 <p class="mt-1 text-sm leading-5 text-[#63736b]">
-                    Lengkapi informasi izin dan lampiran sebelum mengirim.
+                    Pilih jenis pengajuan, lengkapi informasi, lalu kirim untuk persetujuan Kamad atau TU.
                 </p>
             </div>
 
@@ -97,6 +97,20 @@
 
                 </div>
 
+                <div class="hidden grid gap-3 sm:grid-cols-2" data-early-departure>
+                    <label class="block text-sm font-semibold text-[#34483f]" for="{{ form.jam_mulai_pulang_diminta.id_for_label }}">
+                        <span class="mb-1.5 block">Presensi pulang dibuka</span>
+                        {{ form.jam_mulai_pulang_diminta }}
+                        {% for error in form.jam_mulai_pulang_diminta.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
+                    </label>
+                    <label class="block text-sm font-semibold text-[#34483f]" for="{{ form.jam_pulang_diminta.id_for_label }}">
+                        <span class="mb-1.5 block">Jam pulang yang diminta</span>
+                        {{ form.jam_pulang_diminta }}
+                        {% for error in form.jam_pulang_diminta.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
+                    </label>
+                    <p class="text-xs leading-5 text-[#63736b] sm:col-span-2">Permohonan hanya berlaku pada satu tanggal. Pengajuan harus disetujui sebelum waktu presensi pulang dibuka.</p>
+                </div>
+
                 <!-- Alasan izin -->
                 <label
                     class="block text-sm font-semibold text-[#34483f]"
@@ -112,13 +126,13 @@
                     {% endfor %}
                 </label>
 
-                <label class="block text-sm font-semibold text-[#34483f]" for="{{ form.file_bukti.id_for_label }}">
+                <label class="block text-sm font-semibold text-[#34483f]" data-standard-leave for="{{ form.file_bukti.id_for_label }}">
                     <span class="mb-1.5 block">Lampiran bukti <span class="font-normal text-[#63736b]">(PDF/JPG/PNG, maks. 5 MB)</span></span>
                     {{ form.file_bukti }}
                     {% for error in form.file_bukti.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
                 </label>
 
-                <section class="rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-4 sm:p-5">
+                <section class="rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-4 sm:p-5" data-standard-leave>
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <h3 class="font-bold text-[#173f35]">Jam pelajaran yang dialihkan</h3>
@@ -213,10 +227,13 @@
                                     –
                                     {{ leave_request.tgl_selesai|date:"d M Y" }}
                                 </p>
+                                {% if leave_request.jenis_izin == "pulang_awal" %}
+                                    <p class="mt-2 text-sm font-medium text-[#52625b]">Presensi pulang dibuka {{ leave_request.jam_mulai_pulang_diminta|time:"H:i" }} · Jam pulang diminta {{ leave_request.jam_pulang_diminta|time:"H:i" }}</p>
+                                {% endif %}
                             </div>
 
                             <!-- Status persetujuan -->
-                            {% if leave_request.status_approval == "disetujui" %}
+                            {% if leave_request.status_approval == "disetujui" and leave_request.jenis_izin != "pulang_awal" %}
                                 <span class="w-fit rounded-full bg-[#e4eee8] px-3 py-1.5 text-xs font-semibold text-[#17634c]">
                                     Disetujui
                                 </span>
@@ -264,6 +281,10 @@
                             >
                                 Unduh surat izin PDF
                             </a>
+
+                        {% elif leave_request.status_approval == "disetujui" and leave_request.jenis_izin == "pulang_awal" %}
+
+                            <p class="mt-4 rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-3 text-sm text-[#17634c]">Permohonan pulang lebih awal disetujui.</p>
 
                         {% elif leave_request.status_approval == "ditolak" and leave_request.catatan_kamad %}
 
@@ -356,5 +377,28 @@ addScheduleButton.addEventListener('click', () => {
 });
 
 renumberSchedules();
+
+const leaveType = document.querySelector('#id_jenis_izin');
+const startDate = document.querySelector('#id_tgl_mulai');
+const endDate = document.querySelector('#id_tgl_selesai');
+const earlyDepartureFields = document.querySelector('[data-early-departure]');
+const standardLeaveFields = document.querySelectorAll('[data-standard-leave]');
+const evidenceInput = document.querySelector('#id_file_bukti');
+
+function updateLeaveFields() {
+    const earlyDeparture = leaveType.value === 'pulang_awal';
+    earlyDepartureFields.classList.toggle('hidden', !earlyDeparture);
+    standardLeaveFields.forEach(field => field.classList.toggle('hidden', earlyDeparture));
+    evidenceInput.required = !earlyDeparture;
+}
+
+leaveType.addEventListener('change', () => {
+    updateLeaveFields();
+    if (leaveType.value === 'pulang_awal' && startDate.value) endDate.value = startDate.value;
+});
+startDate.addEventListener('change', () => {
+    if (leaveType.value === 'pulang_awal') endDate.value = startDate.value;
+});
+updateLeaveFields();
 </script>
 {% endblock %}

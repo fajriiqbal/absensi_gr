@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from core.models import (
     JadwalWaktuPresensiKhusus,
+    JadwalWaktuPresensiGuru,
     JadwalWaktuPresensiMingguan,
     PengaturanWaktuPresensi,
 )
@@ -27,20 +28,29 @@ class DailyAttendanceSchedule:
     jam_pulang: time
 
 
-def get_daily_attendance_schedule(day: date) -> DailyAttendanceSchedule:
+def get_daily_attendance_schedule(day: date, guru=None) -> DailyAttendanceSchedule:
     settings_obj = PengaturanWaktuPresensi.get_settings()
-    override = JadwalWaktuPresensiKhusus.objects.filter(tanggal=day).first()
-    if override is None:
-        weekly_schedule = JadwalWaktuPresensiMingguan.objects.filter(hari=day.weekday()).first()
-        if weekly_schedule is None:
-            checkout_start = settings_obj.jam_mulai_pulang
-            departure = settings_obj.jam_pulang_normal
-        else:
-            checkout_start = weekly_schedule.jam_mulai_pulang
-            departure = weekly_schedule.jam_pulang
+    personal_override = (
+        JadwalWaktuPresensiGuru.objects.filter(guru=guru, tanggal=day).first()
+        if guru is not None
+        else None
+    )
+    if personal_override is not None:
+        checkout_start = personal_override.jam_mulai_pulang
+        departure = personal_override.jam_pulang
     else:
-        checkout_start = override.jam_mulai_pulang
-        departure = override.jam_pulang
+        override = JadwalWaktuPresensiKhusus.objects.filter(tanggal=day).first()
+        if override is not None:
+            checkout_start = override.jam_mulai_pulang
+            departure = override.jam_pulang
+        else:
+            weekly_schedule = JadwalWaktuPresensiMingguan.objects.filter(hari=day.weekday()).first()
+            if weekly_schedule is None:
+                checkout_start = settings_obj.jam_mulai_pulang
+                departure = settings_obj.jam_pulang_normal
+            else:
+                checkout_start = weekly_schedule.jam_mulai_pulang
+                departure = weekly_schedule.jam_pulang
     return DailyAttendanceSchedule(
         jam_mulai_masuk=settings_obj.jam_mulai_masuk,
         batas_terlambat=settings_obj.batas_terlambat,
@@ -62,7 +72,7 @@ def record_attendance_event(
     local_now = timezone.localtime(now)
     today = timezone.localdate(now)
     local_time = local_now.time().replace(tzinfo=None)
-    schedule = get_daily_attendance_schedule(today)
+    schedule = get_daily_attendance_schedule(today, guru)
 
     with transaction.atomic():
         log = AbsensiLog.objects.select_for_update().filter(guru=guru, tanggal=today).first()

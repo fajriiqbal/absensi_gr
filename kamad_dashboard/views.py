@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -6,6 +7,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from attendance.models import AbsensiLog, PengajuanIzin
 from attendance.reporting import MONTH_NAMES, build_leave_workbook, report_month_name, resolve_report_period
+from core.models import JadwalWaktuPresensiGuru, PengaturanWaktuPresensi
 
 
 REPORT_MONTH_OPTIONS = tuple(enumerate(MONTH_NAMES, start=1))
@@ -20,6 +22,19 @@ def kamad_required(view):
     return wrapped
 
 
+def leave_approver_required(view):
+    @login_required
+    def wrapped(request, *args, **kwargs):
+        if (
+            request.user.role not in {"kamad", "admin"}
+            and not request.user.is_staff
+            and not request.user.is_superuser
+        ):
+            raise Http404
+        return view(request, *args, **kwargs)
+    return wrapped
+
+
 @kamad_required
 def dashboard(request):
     today = timezone.localdate()
@@ -28,6 +43,17 @@ def dashboard(request):
         .select_related("guru")
         .prefetch_related("jadwal_pelajaran__guru_lukiran"),
         "today": today,
+    })
+
+
+@leave_approver_required
+def leave_approvals(request):
+    requests = PengajuanIzin.objects.filter(status_approval="pending")
+    if request.user.role != "kamad" and not request.user.is_superuser:
+        requests = requests.filter(jenis_izin="pulang_awal")
+    return render(request, "kamad_dashboard/leave_approvals.html", {
+        "pending_leaves": requests.select_related("guru")
+        .prefetch_related("jadwal_pelajaran__guru_lukiran"),
     })
 
 
@@ -75,17 +101,57 @@ def live_feed(request):
 
 
 @require_POST
-@kamad_required
+@leave_approver_required
 def approve_leave(request, pk):
-    leave = get_object_or_404(PengajuanIzin, pk=pk)
-    if leave.status_approval != "pending":
-        return JsonResponse({"status": "error", "message": "Pengajuan sudah diproses."}, status=409)
     decision = request.POST.get("decision")
     if decision not in {"disetujui", "ditolak"}:
         return JsonResponse({"status": "error", "message": "Keputusan tidak valid."}, status=400)
-    leave.status_approval = decision
-    leave.approved_by = request.user
-    leave.approved_at = timezone.now()
-    leave.catatan_kamad = request.POST.get("catatan", "").strip()[:2000]
-    leave.save(update_fields=("status_approval", "approved_by", "approved_at", "catatan_kamad"))
+
+    with transaction.atomic():
+        leave = get_object_or_404(PengajuanIzin.objects.select_for_update(), pk=pk)
+        if request.user.role != "kamad" and not request.user.is_superuser:
+            if leave.jenis_izin != "pulang_awal":
+                return JsonResponse(
+                    {"status": "error", "message": "Operator hanya dapat memproses izin pulang lebih awal."},
+                    status=403,
+                )
+        if leave.status_approval != "pending":
+            return JsonResponse({"status": "error", "message": "Pengajuan sudah diproses."}, status=409)
+
+        if decision == "disetujui" and leave.jenis_izin == "pulang_awal":
+            if (
+                not leave.jam_mulai_pulang_diminta
+                or not leave.jam_pulang_diminta
+                or leave.jam_mulai_pulang_diminta >= leave.jam_pulang_diminta
+                or leave.jam_mulai_pulang_diminta
+                <= PengaturanWaktuPresensi.get_settings().batas_terlambat
+            ):
+                return JsonResponse(
+                    {"status": "error", "message": "Jam pulang pada pengajuan tidak valid."},
+                    status=400,
+                )
+            local_now = timezone.localtime()
+            today = timezone.localdate()
+            if leave.tgl_mulai < today or (
+                leave.tgl_mulai == today
+                and local_now.time().replace(tzinfo=None) >= leave.jam_mulai_pulang_diminta
+            ):
+                return JsonResponse(
+                    {"status": "error", "message": "Jadwal pulang sudah dimulai atau tanggalnya sudah lewat."},
+                    status=400,
+                )
+            JadwalWaktuPresensiGuru.objects.update_or_create(
+                guru=leave.guru,
+                tanggal=leave.tgl_mulai,
+                defaults={
+                    "jam_mulai_pulang": leave.jam_mulai_pulang_diminta,
+                    "jam_pulang": leave.jam_pulang_diminta,
+                },
+            )
+
+        leave.status_approval = decision
+        leave.approved_by = request.user
+        leave.approved_at = timezone.now()
+        leave.catatan_kamad = request.POST.get("catatan", "").strip()[:2000]
+        leave.save(update_fields=("status_approval", "approved_by", "approved_at", "catatan_kamad"))
     return JsonResponse({"status": "ok", "message": "Keputusan pengajuan berhasil disimpan."})
