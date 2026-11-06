@@ -81,5 +81,55 @@
       {% endfor %}
     </div>
   </section>
+
+  <section class="mt-8" aria-labelledby="weekly-schedule-heading">
+    <div class="mb-3">
+      <h2 id="weekly-schedule-heading" class="text-lg font-bold text-[#173f35]">Jadwal pulang berdasarkan hari</h2>
+      <p class="mt-1 text-sm leading-5 text-[#63736b]">Atur waktu dibukanya presensi pulang dan jam pulang untuk hari tertentu setiap minggu. Jadwal tanggal khusus tetap diutamakan; hari yang belum diatur menggunakan jadwal normal sekolah.</p>
+    </div>
+
+    <form method="post" class="rounded-2xl border border-[#dbe1dc] bg-white p-4 shadow-sm sm:p-6">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_weekly_schedule">
+      {% if editing_weekly_schedule %}<input type="hidden" name="weekly_schedule_id" value="{{ editing_weekly_schedule.pk }}">{% endif %}
+      {% if weekly_schedule_form.non_field_errors %}<div class="rounded-xl border border-[#ecc5bb] bg-[#fff2ee] p-3 text-sm text-[#8d3829]" role="alert">{{ weekly_schedule_form.non_field_errors }}</div>{% endif %}
+      <h3 class="font-semibold text-[#173f35]">{% if editing_weekly_schedule %}Ubah jadwal {{ editing_weekly_schedule.get_hari_display }}{% else %}Tambah jadwal mingguan{% endif %}</h3>
+      <div class="mt-4 grid gap-4 sm:grid-cols-3">
+        {% for field in weekly_schedule_form %}
+          <label class="block text-sm font-semibold text-[#34483f]" for="{{ field.id_for_label }}">
+            <span class="mb-1.5 block">{{ field.label }}</span>
+            {{ field }}
+            {% for error in field.errors %}<span class="mt-1 block text-xs font-normal text-[#a34431]">{{ error }}</span>{% endfor %}
+          </label>
+        {% endfor %}
+      </div>
+      <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+        <button class="button button-primary min-h-11 rounded-xl" type="submit">{% if editing_weekly_schedule %}Simpan perubahan{% else %}Tambah jadwal mingguan{% endif %}</button>
+        {% if editing_weekly_schedule %}<a class="button button-muted min-h-11 rounded-xl" href="{% url 'attendance-settings' %}">Batal mengubah</a>{% endif %}
+      </div>
+    </form>
+
+    <div class="mt-4 space-y-3">
+      {% for weekly_schedule in weekly_schedules %}
+        <article class="rounded-2xl border border-[#dbe1dc] bg-white p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4 sm:p-5">
+          <div class="min-w-0">
+            <h3 class="font-semibold text-[#173f35]">{{ weekly_schedule.get_hari_display }}</h3>
+            <p class="mt-1 text-sm text-[#52625b]">Presensi pulang dibuka {{ weekly_schedule.jam_mulai_pulang|time:"H:i" }} · Jam pulang {{ weekly_schedule.jam_pulang|time:"H:i" }}</p>
+          </div>
+          <div class="mt-4 flex gap-2 sm:mt-0 sm:shrink-0">
+            <a class="button button-muted min-h-10" href="{% url 'attendance-settings' %}?ubah_hari={{ weekly_schedule.pk }}">Ubah</a>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_weekly_schedule">
+              <input type="hidden" name="weekly_schedule_id" value="{{ weekly_schedule.pk }}">
+              <button class="button min-h-10 border border-[#ead0ca] bg-[#fff5f2] text-[#963d2f]" type="submit">Hapus</button>
+            </form>
+          </div>
+        </article>
+      {% empty %}
+        <div class="rounded-2xl border border-dashed border-[#cfd7d2] bg-white px-5 py-8 text-center text-sm text-[#63736b]">Belum ada jadwal mingguan. Semua hari masih menggunakan jadwal normal sekolah.</div>
+      {% endfor %}
+    </div>
+  </section>
 </div>
 {% endblock %}

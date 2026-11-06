@@ -15,8 +15,18 @@ from accounts.models import UserGuru
 from attendance.models import AbsensiLog, PengajuanIzin
 
 from .forms import WhatsAppSettingsForm
-from .management_forms import JadwalWaktuPresensiKhususForm, PengaturanWaktuPresensiForm
-from .models import JadwalWaktuPresensiKhusus, PengaturanWaktuPresensi, TitikQRCetak, WhatsAppSettings
+from .management_forms import (
+    JadwalWaktuPresensiKhususForm,
+    JadwalWaktuPresensiMingguanForm,
+    PengaturanWaktuPresensiForm,
+)
+from .models import (
+    JadwalWaktuPresensiKhusus,
+    JadwalWaktuPresensiMingguan,
+    PengaturanWaktuPresensi,
+    TitikQRCetak,
+    WhatsAppSettings,
+)
 from .qr_engine import generate_dynamic_qr_token
 from .qr_generator import generate_printable_qr_pdf
 from .whatsapp_links import build_leave_notification_link
@@ -53,6 +63,12 @@ def attendance_settings(request):
     action = request.POST.get("action", "") if request.method == "POST" else ""
     override_id = request.POST.get("override_id") or request.GET.get("ubah")
     override = get_object_or_404(JadwalWaktuPresensiKhusus, pk=override_id) if override_id else None
+    weekly_schedule_id = request.POST.get("weekly_schedule_id") or request.GET.get("ubah_hari")
+    weekly_schedule = (
+        get_object_or_404(JadwalWaktuPresensiMingguan, pk=weekly_schedule_id)
+        if weekly_schedule_id
+        else None
+    )
     settings_form = PengaturanWaktuPresensiForm(
         request.POST if action == "save_settings" else None,
         instance=settings_obj,
@@ -60,6 +76,10 @@ def attendance_settings(request):
     override_form = JadwalWaktuPresensiKhususForm(
         request.POST if action == "save_override" else None,
         instance=override,
+    )
+    weekly_schedule_form = JadwalWaktuPresensiMingguanForm(
+        request.POST if action == "save_weekly_schedule" else None,
+        instance=weekly_schedule,
     )
 
     if action == "save_settings":
@@ -72,18 +92,32 @@ def attendance_settings(request):
             override_form.save()
             messages.success(request, "Jadwal pulang khusus berhasil disimpan.")
             return redirect("attendance-settings")
+    elif action == "save_weekly_schedule":
+        if weekly_schedule_form.is_valid():
+            weekly_schedule_form.save()
+            messages.success(request, "Jadwal waktu presensi mingguan berhasil disimpan.")
+            return redirect("attendance-settings")
     elif action == "delete_override":
         if not override:
             raise Http404
         override.delete()
         messages.success(request, "Jadwal pulang khusus berhasil dihapus.")
         return redirect("attendance-settings")
+    elif action == "delete_weekly_schedule":
+        if not weekly_schedule:
+            raise Http404
+        weekly_schedule.delete()
+        messages.success(request, "Jadwal waktu presensi mingguan berhasil dihapus.")
+        return redirect("attendance-settings")
 
     return render(request, "core/attendance_settings.html", {
         "settings_form": settings_form,
         "override_form": override_form,
+        "weekly_schedule_form": weekly_schedule_form,
+        "weekly_schedules": JadwalWaktuPresensiMingguan.objects.all(),
         "overrides": JadwalWaktuPresensiKhusus.objects.order_by("tanggal"),
         "editing_override": override,
+        "editing_weekly_schedule": weekly_schedule,
     })
 
 

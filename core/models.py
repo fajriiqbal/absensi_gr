@@ -81,6 +81,35 @@ class PengaturanWaktuPresensi(models.Model):
         return "Pengaturan waktu presensi sekolah"
 
 
+class JadwalWaktuPresensiMingguan(models.Model):
+    HARI_CHOICES = (
+        (0, "Senin"),
+        (1, "Selasa"),
+        (2, "Rabu"),
+        (3, "Kamis"),
+        (4, "Jumat"),
+        (5, "Sabtu"),
+        (6, "Minggu"),
+    )
+
+    hari = models.PositiveSmallIntegerField(choices=HARI_CHOICES, unique=True, verbose_name="Hari")
+    jam_mulai_pulang = models.TimeField(verbose_name="Presensi pulang dibuka")
+    jam_pulang = models.TimeField(verbose_name="Jam pulang")
+
+    class Meta:
+        ordering = ("hari",)
+        verbose_name = "Jadwal waktu presensi mingguan"
+        verbose_name_plural = "Jadwal waktu presensi mingguan"
+
+    def clean(self):
+        super().clean()
+        if self.jam_mulai_pulang and self.jam_pulang and self.jam_mulai_pulang >= self.jam_pulang:
+            raise ValidationError({"jam_pulang": "Jam pulang harus setelah presensi pulang dibuka."})
+
+    def __str__(self):
+        return f"{self.get_hari_display()} - Pulang {self.jam_pulang:%H:%M}"
+
+
 class JadwalWaktuPresensiKhusus(models.Model):
     tanggal = models.DateField(unique=True)
     jam_mulai_pulang = models.TimeField(verbose_name="Presensi pulang dibuka")

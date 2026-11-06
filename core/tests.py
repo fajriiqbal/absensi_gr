@@ -17,7 +17,14 @@ from PIL import Image
 from attendance.models import AbsensiLog, PengajuanIzin
 from accounts.models import UserGuru
 from core.geo import calculate_haversine, parse_coordinates
-from core.models import JadwalWaktuPresensiKhusus, LokasiSekolah, PengaturanWaktuPresensi, TitikQRCetak, WhatsAppSettings
+from core.models import (
+    JadwalWaktuPresensiKhusus,
+    JadwalWaktuPresensiMingguan,
+    LokasiSekolah,
+    PengaturanWaktuPresensi,
+    TitikQRCetak,
+    WhatsAppSettings,
+)
 from core.qr_engine import generate_dynamic_qr_token, verify_dynamic_qr_token
 from core.qr_generator import generate_printable_qr_pdf
 from core.whatsapp_links import build_leave_notification_link
@@ -89,6 +96,26 @@ class AdminDashboardTests(TestCase):
             "jam_pulang_normal": "13:40",
         })
         self.assertRedirects(response, reverse("attendance-settings"))
+
+        response = self.client.post(reverse("attendance-settings"), {
+            "action": "save_weekly_schedule",
+            "hari": "4",
+            "jam_mulai_pulang": "10:30",
+            "jam_pulang": "11:00",
+        })
+        self.assertRedirects(response, reverse("attendance-settings"))
+        friday_schedule = JadwalWaktuPresensiMingguan.objects.get(hari=4)
+        self.assertEqual(friday_schedule.jam_pulang, time(11, 0))
+
+        response = self.client.get(reverse("attendance-settings"))
+        self.assertContains(response, "Jumat")
+        self.assertContains(response, "11:00")
+        response = self.client.post(reverse("attendance-settings"), {
+            "action": "delete_weekly_schedule",
+            "weekly_schedule_id": friday_schedule.pk,
+        })
+        self.assertRedirects(response, reverse("attendance-settings"))
+        self.assertFalse(JadwalWaktuPresensiMingguan.objects.filter(pk=friday_schedule.pk).exists())
 
         special_date = timezone.localdate() + timedelta(days=1)
         response = self.client.post(reverse("attendance-settings"), {

@@ -4,7 +4,11 @@ from datetime import date, time
 from django.db import transaction
 from django.utils import timezone
 
-from core.models import JadwalWaktuPresensiKhusus, PengaturanWaktuPresensi
+from core.models import (
+    JadwalWaktuPresensiKhusus,
+    JadwalWaktuPresensiMingguan,
+    PengaturanWaktuPresensi,
+)
 
 from .models import AbsensiLog
 
@@ -27,8 +31,13 @@ def get_daily_attendance_schedule(day: date) -> DailyAttendanceSchedule:
     settings_obj = PengaturanWaktuPresensi.get_settings()
     override = JadwalWaktuPresensiKhusus.objects.filter(tanggal=day).first()
     if override is None:
-        checkout_start = settings_obj.jam_mulai_pulang
-        departure = settings_obj.jam_pulang_normal
+        weekly_schedule = JadwalWaktuPresensiMingguan.objects.filter(hari=day.weekday()).first()
+        if weekly_schedule is None:
+            checkout_start = settings_obj.jam_mulai_pulang
+            departure = settings_obj.jam_pulang_normal
+        else:
+            checkout_start = weekly_schedule.jam_mulai_pulang
+            departure = weekly_schedule.jam_pulang
     else:
         checkout_start = override.jam_mulai_pulang
         departure = override.jam_pulang

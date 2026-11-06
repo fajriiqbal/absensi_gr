@@ -11,7 +11,13 @@ from openpyxl import load_workbook
 from PIL import Image
 
 from accounts.models import UserGuru
-from core.models import JadwalWaktuPresensiKhusus, LokasiSekolah, PengaturanWaktuPresensi, TitikQRCetak
+from core.models import (
+    JadwalWaktuPresensiKhusus,
+    JadwalWaktuPresensiMingguan,
+    LokasiSekolah,
+    PengaturanWaktuPresensi,
+    TitikQRCetak,
+)
 from core.qr_engine import PRINTABLE_PREFIX, generate_dynamic_qr_token, verify_dynamic_qr_token
 
 from attendance.models import AbsensiLog, PengajuanIzin
@@ -159,6 +165,33 @@ class AttendanceScanTests(TestCase):
 
         record_attendance_event(self.teacher, method="qr_tv", now=at(7, 0))
         log, _ = record_attendance_event(self.teacher, method="qr_tv", now=at(12, 0))
+        self.assertEqual(log.status_pulang, "tepat_waktu")
+
+    def test_weekly_early_departure_schedule_is_used_on_configured_weekday(self):
+        settings_obj = PengaturanWaktuPresensi.objects.get(pk=1)
+        settings_obj.jam_mulai_masuk = time(5, 0)
+        settings_obj.batas_terlambat = time(7, 30)
+        settings_obj.jam_mulai_pulang = time(12, 0)
+        settings_obj.jam_pulang_normal = time(13, 40)
+        settings_obj.save()
+        today = timezone.localdate()
+        friday = today + timedelta(days=(4 - today.weekday()) % 7)
+        JadwalWaktuPresensiMingguan.objects.create(
+            hari=4,
+            jam_mulai_pulang=time(10, 30),
+            jam_pulang=time(11, 0),
+        )
+        local_timezone = timezone.get_current_timezone()
+
+        def at(hour, minute):
+            return timezone.make_aware(datetime.combine(friday, time(hour, minute)), local_timezone)
+
+        record_attendance_event(self.teacher, method="qr_tv", now=at(7, 0))
+        with self.assertRaisesMessage(AttendanceScheduleError, "dibuka pukul 10:30"):
+            record_attendance_event(self.teacher, method="qr_tv", now=at(10, 29))
+
+        log, event = record_attendance_event(self.teacher, method="qr_tv", now=at(11, 0))
+        self.assertEqual(event, "pulang")
         self.assertEqual(log.status_pulang, "tepat_waktu")
 
     def test_printed_qr_enforces_geofence_but_not_selfie(self):

@@ -7,7 +7,13 @@ from django.utils import timezone
 from attendance.forms import JadwalPelajaranIzinFormSetFactory
 from attendance.models import AbsensiLog, PengajuanIzin
 
-from .models import JadwalWaktuPresensiKhusus, LokasiSekolah, PengaturanWaktuPresensi, TitikQRCetak
+from .models import (
+    JadwalWaktuPresensiKhusus,
+    JadwalWaktuPresensiMingguan,
+    LokasiSekolah,
+    PengaturanWaktuPresensi,
+    TitikQRCetak,
+)
 
 
 UserGuru = get_user_model()
@@ -195,6 +201,24 @@ class PengaturanWaktuPresensiForm(forms.ModelForm):
             "jam_mulai_pulang": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
             "jam_pulang_normal": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
         }
+
+
+class JadwalWaktuPresensiMingguanForm(forms.ModelForm):
+    class Meta:
+        model = JadwalWaktuPresensiMingguan
+        fields = ("hari", "jam_mulai_pulang", "jam_pulang")
+        widgets = {
+            "hari": forms.Select(attrs={"class": "field"}),
+            "jam_mulai_pulang": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
+            "jam_pulang": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        checkout_start = cleaned_data.get("jam_mulai_pulang")
+        if checkout_start and checkout_start <= PengaturanWaktuPresensi.get_settings().batas_terlambat:
+            self.add_error("jam_mulai_pulang", "Presensi pulang harus dibuka setelah batas waktu tepat waktu.")
+        return cleaned_data
 
 
 class JadwalWaktuPresensiKhususForm(forms.ModelForm):
