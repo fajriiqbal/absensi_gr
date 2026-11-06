@@ -464,7 +464,7 @@
       <a class="mobile-nav-item" href="{% url 'guru-my-qr' %}" aria-label="QR Kiosk"><i data-lucide="qr-code"></i><span>QR Kiosk</span></a>
       <a class="mobile-scan-item" href="{% url 'guru-scan' %}" data-scan-shortcut aria-label="Scan presensi"><span class="mobile-scan-button"><i data-lucide="scan-line"></i></span><span>Scan</span></a>
       <a class="mobile-nav-item" href="{% url 'teacher-history' %}" aria-label="Riwayat presensi dan izin"{% if request.resolver_match.url_name == "teacher-history" %} aria-current="page"{% endif %}><i data-lucide="history"></i><span>Riwayat</span></a>
-      {% if request.user.is_staff %}<a class="mobile-nav-item" href="{% url 'leave-approvals' %}" aria-label="Persetujuan pulang awal"><i data-lucide="clipboard-check"></i><span>Approval</span></a>{% else %}<a class="mobile-nav-item" href="{% url 'pwa-setup' %}" aria-label="Setup perangkat"><i data-lucide="settings-2"></i><span>Setup</span></a>{% endif %}
+      <a class="mobile-nav-item" href="{% url 'pwa-setup' %}" aria-label="Setup perangkat"><i data-lucide="settings-2"></i><span>Setup</span></a>
     {% elif request.user.role == "kamad" %}
       <a class="mobile-nav-item" href="{% url 'leave-report' %}" aria-label="Rekap izin"><i data-lucide="file-spreadsheet"></i><span>Rekap izin</span></a>
       <a class="mobile-nav-item" href="{% url 'kamad-dashboard' %}" aria-label="Dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
