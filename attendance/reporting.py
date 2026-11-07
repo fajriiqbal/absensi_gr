@@ -107,6 +107,8 @@ def build_attendance_workbook(logs, year, month, teachers=()):
     workbook.properties.title = f"Rekap Absensi {report_month_name(month)} {year}"
 
     template_sheet = workbook.active
+    friday_fills = [copy(template_sheet.cell(13, column).fill) for column in range(1, template_sheet.max_column + 1)]
+    sunday_fills = [copy(template_sheet.cell(11, column).fill) for column in range(1, template_sheet.max_column + 1)]
     shift_schedules = {}
     for row in range(8, 38):
         shift_name = template_sheet[f"C{row}"].value
@@ -169,6 +171,11 @@ def build_attendance_workbook(logs, year, month, teachers=()):
             weekday = current_date.weekday()
             is_routine_holiday = weekday == 6
             log = logs_by_teacher[teacher.pk].get(current_date) if teacher else None
+
+            row_fills = friday_fills if weekday == 4 else sunday_fills if is_routine_holiday else None
+            if row_fills:
+                for column, fill in enumerate(row_fills, start=1):
+                    sheet.cell(row, column).fill = copy(fill)
 
             sheet[f"A{row}"] = f"{day_names[weekday]},"
             sheet[f"B{row}"] = current_date
