@@ -1,7 +1,12 @@
+import calendar
 from collections import defaultdict
+from copy import copy
+from datetime import date, datetime
 from io import BytesIO
+from pathlib import Path
 
 from openpyxl import Workbook
+from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from django.utils import timezone
@@ -95,8 +100,137 @@ def _excel_datetime(value):
 
 
 def build_attendance_workbook(logs, year, month, teachers=()):
-    workbook = Workbook()
+    logs = list(logs)
+    teachers = list(teachers)
+    template_path = Path(__file__).resolve().parent.parent / "Absen_Januari_26.xlsx"
+    workbook = load_workbook(template_path)
     workbook.properties.title = f"Rekap Absensi {report_month_name(month)} {year}"
+
+    template_sheet = workbook.active
+    shift_schedules = {}
+    for row in range(8, 38):
+        shift_name = template_sheet[f"C{row}"].value
+        if shift_name in {"Senin-Kamis", "Jum'at", "Sabtu"} and shift_name not in shift_schedules:
+            shift_schedules[shift_name] = (template_sheet[f"E{row}"].value, template_sheet[f"H{row}"].value)
+    days_in_month = calendar.monthrange(year, month)[1]
+    if days_in_month > 30:
+        template_sheet.unmerge_cells("C38:D38")
+        template_sheet.insert_rows(38)
+        template_sheet.merge_cells("C39:D39")
+        for column in range(1, template_sheet.max_column + 1):
+            template_sheet.cell(38, column)._style = copy(template_sheet.cell(37, column)._style)
+        template_sheet.row_dimensions[38].height = template_sheet.row_dimensions[37].height
+
+    day_names = ("Senin", "Selasa", "Rabu", "Kamis", "Jum'at", "Sabtu", "Minggu")
+    logs_by_teacher = defaultdict(dict)
+    for log in logs:
+        logs_by_teacher[log.guru_id][log.tanggal] = log
+
+    report_teachers = list(teachers)
+    teacher_ids = {teacher.pk for teacher in report_teachers}
+    for log in logs:
+        if log.guru_id not in teacher_ids:
+            report_teachers.append(log.guru)
+            teacher_ids.add(log.guru_id)
+
+    if not report_teachers:
+        report_teachers = [None]
+
+    for index, teacher in enumerate(report_teachers):
+        sheet = template_sheet if index == 0 else workbook.copy_worksheet(template_sheet)
+        sheet.title = f"Laporan Guru {index + 1}" if teacher else "Laporan Absensi"
+
+        for row in range(8, 38 + (days_in_month > 30)):
+            for column in range(1, sheet.max_column + 1):
+                cell = sheet.cell(row, column)
+                if not (isinstance(cell.value, str) and cell.value.startswith("=")):
+                    cell.value = None
+
+        if teacher:
+            sheet["B4"] = f"PIN : {excel_text(teacher.pk)}"
+            sheet["B5"] = f"NIK : {excel_text(teacher.nip)}"
+            sheet["I4"] = f": {excel_text(teacher.nama_lengkap)}"
+            sheet["R4"] = f": {excel_text(teacher.get_role_display())}"
+        else:
+            sheet["B4"] = "PIN :"
+            sheet["B5"] = "NIK :"
+            sheet["I4"] = ":"
+            sheet["R4"] = ":"
+
+        first_day = date(year, month, 1)
+        last_day = date(year, month, days_in_month)
+        sheet["Q3"] = f"Tgl. Periode : {first_day:%d/%m/%Y}  s/d  {last_day:%d/%m/%Y}"
+
+        total_attendance = 0
+        total_duration_seconds = 0
+        for day_number in range(1, days_in_month + 1):
+            current_date = date(year, month, day_number)
+            row = 7 + day_number
+            weekday = current_date.weekday()
+            is_routine_holiday = weekday == 6
+            log = logs_by_teacher[teacher.pk].get(current_date) if teacher else None
+
+            sheet[f"A{row}"] = f"{day_names[weekday]},"
+            sheet[f"B{row}"] = current_date
+            if is_routine_holiday:
+                sheet[f"C{row}"] = "Libur"
+                sheet[f"T{row}"] = "Libur Rutin"
+                sheet[f"E{row}"] = None
+                sheet[f"H{row}"] = None
+                sheet[f"F{row}"] = None
+                sheet[f"I{row}"] = None
+                sheet[f"G{row}"] = None
+                sheet[f"J{row}"] = None
+                sheet[f"K{row}"] = None
+                continue
+
+            if weekday <= 3:
+                shift_name = "Senin-Kamis"
+            elif weekday == 4:
+                shift_name = "Jum'at"
+            else:
+                shift_name = "Sabtu"
+
+            planned_checkin, planned_checkout = shift_schedules[shift_name]
+            sheet[f"C{row}"] = shift_name
+            sheet[f"E{row}"] = planned_checkin
+            sheet[f"H{row}"] = planned_checkout
+            sheet[f"K{row}"] = f"=I{row}-F{row}"
+
+            checkin = _excel_datetime(log.waktu_masuk) if log and log.waktu_masuk else None
+            checkout = _excel_datetime(log.waktu_pulang) if log and log.waktu_pulang else None
+            checkin_time = checkin.time() if isinstance(checkin, datetime) else None
+            checkout_time = checkout.time() if isinstance(checkout, datetime) else None
+            sheet[f"F{row}"] = checkin_time
+            sheet[f"I{row}"] = checkout_time
+
+            if checkin_time:
+                late_seconds = max(
+                    0,
+                    (datetime.combine(current_date, checkin_time) - datetime.combine(current_date, planned_checkin)).total_seconds(),
+                )
+                sheet[f"G{row}"] = str(int(late_seconds // 60))
+            if checkout_time:
+                early_seconds = max(
+                    0,
+                    (datetime.combine(current_date, planned_checkout) - datetime.combine(current_date, checkout_time)).total_seconds(),
+                )
+                sheet[f"J{row}"] = str(int(early_seconds // 60))
+            if log:
+                total_attendance += 1
+                if checkin_time and checkout_time:
+                    total_duration_seconds += max(
+                        0,
+                        int((datetime.combine(current_date, checkout_time) - datetime.combine(current_date, checkin_time)).total_seconds()),
+                    )
+
+        summary_row = 38 + (days_in_month > 30)
+        total_hours, total_seconds = divmod(total_duration_seconds, 3600)
+        total_minutes = total_seconds // 60
+        sheet[f"C{summary_row}"] = total_attendance
+        sheet[f"K{summary_row}"] = f"{total_hours}.{total_minutes:02d}"
+        sheet[f"P{39 + (days_in_month > 30)}"] = f"Klaten, {last_day.day} {report_month_name(month)} {year}"
+
     summary = _new_sheet(
         workbook,
         "Rekap Per Guru",

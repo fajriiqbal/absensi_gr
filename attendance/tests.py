@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from io import BytesIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -588,14 +588,17 @@ class AttendanceReportTests(TestCase):
         second_teacher = UserGuru.objects.create_user(
             username="report-guru-2", nip="198031", nama_lengkap="Guru Rekap Dua", email="report-guru-2@example.test", password="StrongPass123!"
         )
-        today = timezone.localdate()
+        today = date(2026, 1, 15)
         for teacher, status in ((first_teacher, "hadir"), (second_teacher, "terlambat")):
             log = AbsensiLog.objects.create(
                 guru=teacher,
-                waktu_masuk=timezone.now(),
+                waktu_masuk=timezone.make_aware(datetime(2026, 1, 15, 7, 45)),
+                waktu_pulang=timezone.make_aware(datetime(2026, 1, 15, 13, 35)),
                 metode_scan="qr_tv",
                 status=status,
             )
+            log.tanggal = today
+            log.save(update_fields=("tanggal",))
             if teacher == first_teacher:
                 log.status_pulang = "pulang_cepat"
                 log.save(update_fields=("status_pulang",))
@@ -610,6 +613,22 @@ class AttendanceReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response["Content-Disposition"].endswith(".xlsx\""))
         workbook = load_workbook(BytesIO(response.content))
+        report = workbook["Laporan Guru 1"]
+        self.assertEqual(report["B4"].value, f"PIN : {first_teacher.pk}")
+        self.assertEqual(report["B5"].value, "NIK : 198030")
+        self.assertEqual(report["I4"].value, ": Guru Rekap Satu")
+        self.assertEqual(report["A8"].value, "Kamis,")
+        self.assertEqual(report["B8"].value.date(), today.replace(day=1))
+        self.assertEqual(report["F22"].value, time(7, 45))
+        self.assertEqual(report["G22"].value, "15")
+        self.assertEqual(report["I22"].value, time(13, 35))
+        self.assertEqual(report["J22"].value, "25")
+        self.assertEqual(report["B38"].value.date(), date(2026, 1, 31))
+        self.assertEqual(report["K38"].value, "=I38-F38")
+        self.assertEqual(report["C39"].value, 1)
+        self.assertEqual(report["K39"].value, "5.50")
+        self.assertEqual(report["P40"].value, "Klaten, 31 Januari 2026")
+        self.assertIn("C39:D39", [str(merged) for merged in report.merged_cells.ranges])
         summary = workbook["Rekap Per Guru"]
         self.assertEqual(summary.max_row, 2)
         self.assertEqual(summary["A2"].value, first_teacher.nip)
@@ -617,6 +636,18 @@ class AttendanceReportTests(TestCase):
         self.assertEqual(summary["E2"].value, 1)
         self.assertEqual(workbook["Detail Absensi"].max_row, 2)
         self.assertEqual(workbook["Detail Absensi"]["H1"].value, "Status Pulang")
+
+        params.pop("guru")
+        all_teachers_response = self.client.get(reverse("attendance-report"), params)
+        all_teachers_workbook = load_workbook(BytesIO(all_teachers_response.content))
+        self.assertEqual(all_teachers_response.status_code, 200)
+        self.assertCountEqual(
+            (
+                all_teachers_workbook["Laporan Guru 1"]["I4"].value,
+                all_teachers_workbook["Laporan Guru 2"]["I4"].value,
+            ),
+            (": Guru Rekap Satu", ": Guru Rekap Dua"),
+        )
 
     def test_teacher_cannot_open_admin_attendance_report(self):
         teacher = UserGuru.objects.create_user(

@@ -39,6 +39,7 @@ Setelah dependencies terpasang di virtual environment aplikasi, jalankan `python
 - Persetujuan izin pulang lebih awal (Kamad/TU): `/admin/persetujuan-izin`
 - Pengaturan nomor WhatsApp Kamad: `/admin/pengaturan-whatsapp`
 - Rekap absensi bulanan per guru (Excel): `/admin/rekap-absensi/`
+  - Ekspor menggunakan `Absen_Januari_26.xlsx` di root proyek; sertakan file ini saat deployment.
 - Cetak QR poster (admin/operator): `/admin/cetak-qr`
 - Pemindai QR dari akun guru (admin/petugas): `/kiosk/scan`
 - QR dinamis untuk TV: `/display/qr-sekolah`

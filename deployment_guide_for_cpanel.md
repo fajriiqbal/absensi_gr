@@ -67,3 +67,41 @@ WhiteNoise melayani file hasil `collectstatic` (termasuk CSS admin Django) melal
 4. Setelah memperbaiki konfigurasi atau menarik commit terbaru, restart Python App lagi.
 
 Jangan mengaktifkan `DJANGO_DEBUG=1` pada situs publik untuk melihat traceback. Bila perlu bantuan mendiagnosis, bagikan traceback dari log setelah menghapus password, secret key, dan data pribadi. Tanpa traceback dari hosting, penyebab spesifik HTTP 500 tidak dapat dipastikan dari sisi repository saja. 
+
+
+Anda adalah seorang Senior Django Developer. Saya sedang mengembangkan sistem absensi sekolah/madrasah menggunakan Django dan saya membutuhkan bantuan Anda untuk membuat fitur "Export Laporan Absensi Bulanan ke Excel".
+
+Saya sudah memiliki file template Excel bernama `template_absen.xlsx` yang memiliki format, kop surat, warna, border, dan rumus durasi keterlambatan yang baku. Tujuan utamanya adalah sistem dapat membaca database absensi menggunakan Django ORM, lalu memasukkannya ke dalam template Excel tersebut menggunakan library `openpyxl` tanpa merusak format aslinya.
+
+Berikut adalah spesifikasi detail fitur yang harus Anda buat:
+
+### 1. Kebutuhan Antarmuka (HTML/Django Templates)
+- Buatkan form HTML sederhana menggunakan Tailwind CSS/Bootstrap yang berisi filter "Bulan" dan "Tahun", beserta tombol "Cetak Absensi Excel".
+- Form ini harus tersedia di dua template berbeda:
+  1. **akun Guru (`dashboard_guru.html`):** Guru hanya bisa memilih Bulan dan Tahun untuk mengunduh laporan absensinya sendiri (ID Guru diambil dari `request.user`).
+  2. **akun Admin (`dashboard_admin.html`):** Admin memiliki tambahan dropdown `<select>` "Pilih Guru" selain Bulan dan Tahun.
+
+### 2. Spesifikasi Logika Backend (Django Views & URLs)
+- Tuliskan kode routing di `urls.py` dan fungsi view di `views.py`. 
+- Alur kerja di `views.py`:
+  1. Menerima parameter GET/POST dari form (ID Guru, Bulan, Tahun).
+  2. Lakukan query data absensi menggunakan Django ORM (misal: `Absensi.objects.filter(guru_id=..., tanggal__year=..., tanggal__month=...)`).
+  3. Load file `template_absen.xlsx` menggunakan `openpyxl.load_workbook()`.
+  4. Isi bagian Header Karyawan di sheet Excel:
+     - Nama Perusahaan/Instansi
+     - Nama Karyawan & Jabatan (diambil dari relasi user/guru)
+     - NIK & PIN
+     - Tanggal Periode Laporan (contoh: 01/01/2026 s/d 31/01/2026)
+  5. Isi bagian Data Harian (dimulai dari baris ke-8):
+     - Sistem harus menghitung jumlah hari dalam bulan tersebut menggunakan library `calendar` bawaan Python.
+     - Loop data absensi dan cocokkan dengan tanggal. Jika ada data, isi Jam Scan Masuk dan Jam Scan Pulang. Jika hari libur, kosongkan jam scan dan beri keterangan "Libur Rutin".
+  6. Isi bagian Footer:
+     - Ubah tanggal cetak dokumen di atas tanda tangan (misal: "Klaten, 31 Januari 2026").
+  7. Simpan workbook ke dalam *virtual file* (seperti `io.BytesIO()`) lalu return sebagai `HttpResponse` dengan `content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'` agar langsung terunduh oleh browser tanpa menyimpan file baru di server.
+
+### 3. Aturan Ketat untuk OpenPyXL
+- JANGAN meng-generate workbook dari awal (`Workbook()`). Anda WAJIB menggunakan metode `load_workbook('template_absen.xlsx')`.
+- JANGAN menimpa baris secara brutal yang bisa menghapus rumus Excel. Gunakan modifikasi nilai sel secara spesifik (contoh: `sheet['E8'] = jam_masuk`).
+- Berikan saya contoh struktur Model `Absensi` dan `Guru` yang Anda gunakan sebagai asumsi agar saya bisa menyesuaikannya dengan model saya sendiri.
+
+Tolong berikan panduan implementasinya selangkah demi selangkah (Models, URLs, Views, dan HTML Templates).
