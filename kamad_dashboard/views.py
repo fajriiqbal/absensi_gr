@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from accounts.models import UserGuru
 from attendance.models import AbsensiLog, PengajuanIzin
 from attendance.reporting import MONTH_NAMES, build_leave_workbook, report_month_name, resolve_report_period
 from core.models import JadwalWaktuPresensiGuru, PengaturanWaktuPresensi
@@ -88,16 +89,28 @@ def leave_report(request):
 @require_GET
 @kamad_required
 def live_feed(request):
-    logs = AbsensiLog.objects.filter(tanggal=timezone.localdate()).select_related("guru").order_by("-waktu_masuk")[:100]
-    return JsonResponse({"items": [{
-        "nama": log.guru.nama_lengkap,
-        "nip": log.guru.nip,
-        "waktu_masuk": timezone.localtime(log.waktu_masuk).strftime("%H:%M") if log.waktu_masuk else "-",
-        "waktu_pulang": timezone.localtime(log.waktu_pulang).strftime("%H:%M") if log.waktu_pulang else "-",
-        "metode": log.get_metode_scan_display(),
-        "status": log.get_status_display(),
-        "status_pulang": log.get_status_pulang_display() if log.status_pulang else "-",
-    } for log in logs]})
+    today = timezone.localdate()
+    logs = AbsensiLog.objects.filter(tanggal=today).select_related("guru").order_by("-waktu_masuk")[:100]
+    present_teacher_ids = AbsensiLog.objects.filter(tanggal=today).values("guru_id")
+    missing_teachers = UserGuru.objects.filter(
+        role="guru",
+        is_active=True,
+    ).exclude(pk__in=present_teacher_ids).order_by("nama_lengkap", "nip")
+    return JsonResponse({
+        "items": [{
+            "nama": log.guru.nama_lengkap,
+            "nip": log.guru.nip,
+            "waktu_masuk": timezone.localtime(log.waktu_masuk).strftime("%H:%M") if log.waktu_masuk else "-",
+            "waktu_pulang": timezone.localtime(log.waktu_pulang).strftime("%H:%M") if log.waktu_pulang else "-",
+            "metode": log.get_metode_scan_display(),
+            "status": log.get_status_display(),
+            "status_pulang": log.get_status_pulang_display() if log.status_pulang else "-",
+        } for log in logs],
+        "belum_absen": [{
+            "nama": guru.nama_lengkap,
+            "nip": guru.nip,
+        } for guru in missing_teachers],
+    })
 
 
 @require_POST

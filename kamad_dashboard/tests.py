@@ -9,8 +9,73 @@ from django.utils import timezone
 from openpyxl import load_workbook
 
 from accounts.models import UserGuru
-from attendance.models import JadwalPelajaranIzin, PengajuanIzin
+from attendance.models import AbsensiLog, JadwalPelajaranIzin, PengajuanIzin
 from core.models import JadwalWaktuPresensiGuru
+
+
+class DashboardTests(TestCase):
+    def test_live_feed_lists_active_teachers_without_today_attendance(self):
+        kamad = UserGuru.objects.create_user(
+            username="dashboard-live-kamad",
+            nip="900010",
+            nama_lengkap="Kamad Live",
+            email="dashboard-live-kamad@example.test",
+            password="test-password-123",
+            role="kamad",
+        )
+        present_teacher = UserGuru.objects.create_user(
+            username="dashboard-present-teacher",
+            nip="900011",
+            nama_lengkap="Guru Sudah Absen",
+            email="dashboard-present@example.test",
+            password="test-password-123",
+        )
+        missing_teacher = UserGuru.objects.create_user(
+            username="dashboard-missing-teacher",
+            nip="900012",
+            nama_lengkap="Guru Belum Absen",
+            email="dashboard-missing@example.test",
+            password="test-password-123",
+        )
+        inactive_teacher = UserGuru.objects.create_user(
+            username="dashboard-inactive-teacher",
+            nip="900013",
+            nama_lengkap="Guru Nonaktif",
+            email="dashboard-inactive@example.test",
+            password="test-password-123",
+            is_active=False,
+        )
+        AbsensiLog.objects.create(
+            guru=present_teacher,
+            tanggal=timezone.localdate(),
+            metode_scan="qr_tv",
+        )
+        self.client.force_login(kamad)
+
+        response = self.client.get(reverse("kamad-live-feed"))
+
+        self.assertEqual(response.status_code, 200)
+        missing_teachers = response.json()["belum_absen"]
+        self.assertEqual(missing_teachers, [{"nama": missing_teacher.nama_lengkap, "nip": missing_teacher.nip}])
+        self.assertNotIn(present_teacher.nama_lengkap, [teacher["nama"] for teacher in missing_teachers])
+        self.assertNotIn(inactive_teacher.nama_lengkap, [teacher["nama"] for teacher in missing_teachers])
+
+    def test_kamad_dashboard_displays_missing_attendance_table(self):
+        kamad = UserGuru.objects.create_user(
+            username="dashboard-table-kamad",
+            nip="900014",
+            nama_lengkap="Kamad Tabel",
+            email="dashboard-table-kamad@example.test",
+            password="test-password-123",
+            role="kamad",
+        )
+        self.client.force_login(kamad)
+
+        response = self.client.get(reverse("kamad-dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Guru belum absen hari ini")
+        self.assertContains(response, "Semua guru aktif sudah tercatat absen hari ini.")
 
 
 class ApprovalTests(TestCase):
