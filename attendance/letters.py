@@ -228,7 +228,7 @@ def generate_leave_letter_pdf(leave):
     )
 
     reference = (
-        f"{leave.pk:05d}/MTs.I/T/{leave.tgl_mulai.month}/{leave.tgl_mulai.year}/"
+        f"{leave.pk:05d}/MTs.I/T/{leave.tgl_mulai.month}/{leave.tgl_mulai.year}"
     )
 
     story = [
