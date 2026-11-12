@@ -228,7 +228,7 @@
                             </div>
 
                             <!-- Status persetujuan -->
-                            {% if leave_request.status_approval == "disetujui" and leave_request.jenis_izin != "pulang_awal" %}
+                            {% if leave_request.status_approval == "disetujui" %}
                                 <span class="w-fit rounded-full bg-[#e4eee8] px-3 py-1.5 text-xs font-semibold text-[#17634c]">
                                     Disetujui
                                 </span>
@@ -267,7 +267,11 @@
                         {% endwith %}
 
                         <!-- Tindakan berdasarkan status -->
-                        {% if leave_request.status_approval == "disetujui" %}
+                        {% if leave_request.status_approval == "disetujui" and leave_request.jenis_izin == "pulang_awal" %}
+
+                            <p class="mt-4 rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-3 text-sm text-[#17634c]">Permohonan pulang lebih awal disetujui.</p>
+
+                        {% elif leave_request.status_approval == "disetujui" %}
 
                             <a
                                 class="button button-primary mt-4 min-h-11 w-full rounded-xl sm:w-auto"
@@ -276,10 +280,6 @@
                             >
                                 Unduh surat izin PDF
                             </a>
-
-                        {% elif leave_request.status_approval == "disetujui" and leave_request.jenis_izin == "pulang_awal" %}
-
-                            <p class="mt-4 rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-3 text-sm text-[#17634c]">Permohonan pulang lebih awal disetujui.</p>
 
                         {% elif leave_request.status_approval == "ditolak" and leave_request.catatan_kamad %}
 

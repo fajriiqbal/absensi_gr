@@ -388,6 +388,25 @@ class LeaveRequestWorkflowTests(TestCase):
         )
         self.client.force_login(self.teacher)
 
+    def test_approved_early_departure_shows_approved_status_in_leave_requests(self):
+        today = timezone.localdate()
+        PengajuanIzin.objects.create(
+            guru=self.teacher,
+            jenis_izin="pulang_awal",
+            tgl_mulai=today,
+            tgl_selesai=today,
+            jam_pulang_diminta=time(12, 0),
+            alasan="Keperluan keluarga.",
+            status_approval="disetujui",
+        )
+
+        response = self.client.get(reverse("leave-requests"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Disetujui")
+        self.assertContains(response, "Permohonan pulang lebih awal disetujui.")
+        self.assertNotContains(response, "Menunggu approval")
+
     def test_teacher_history_shows_only_own_attendance_and_leave_and_replaces_monitor_link(self):
         another_teacher = UserGuru.objects.create_user(
             username="history-other", nip="198024", nama_lengkap="Guru Lain", email="history-other@example.test", password="HistoryTeacher!734",
