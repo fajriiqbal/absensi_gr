@@ -168,6 +168,30 @@ class AttendanceScanTests(TestCase):
         log, _ = record_attendance_event(self.teacher, method="qr_tv", now=at(12, 0))
         self.assertEqual(log.status_pulang, "tepat_waktu")
 
+    def test_approved_early_departure_is_filled_when_attendance_is_recorded(self):
+        today = timezone.localdate()
+        departure = time(9, 0)
+        PengajuanIzin.objects.create(
+            guru=self.teacher,
+            jenis_izin="pulang_awal",
+            tgl_mulai=today,
+            tgl_selesai=today,
+            jam_pulang_diminta=departure,
+            alasan="Keperluan keluarga.",
+            status_approval="disetujui",
+        )
+        local_timezone = timezone.get_current_timezone()
+        arrival = timezone.make_aware(datetime.combine(today, time(7, 0)), local_timezone)
+
+        log, event = record_attendance_event(self.teacher, method="qr_tv", now=arrival)
+
+        self.assertEqual(event, "masuk")
+        self.assertEqual(
+            log.waktu_pulang,
+            timezone.make_aware(datetime.combine(today, departure), local_timezone),
+        )
+        self.assertEqual(log.status_pulang, "pulang_cepat")
+
     def test_weekly_early_departure_schedule_is_used_on_configured_weekday(self):
         settings_obj = PengaturanWaktuPresensi.objects.get(pk=1)
         settings_obj.jam_mulai_masuk = time(5, 0)
@@ -488,7 +512,6 @@ class LeaveRequestWorkflowTests(TestCase):
             "jenis_izin": "pulang_awal",
             "tgl_mulai": departure_date.isoformat(),
             "tgl_selesai": departure_date.isoformat(),
-            "jam_mulai_pulang_diminta": "08:45",
             "jam_pulang_diminta": "09:00",
             "alasan": "Keperluan keluarga yang mendesak.",
             "jadwal_pelajaran-TOTAL_FORMS": "0",
@@ -500,7 +523,6 @@ class LeaveRequestWorkflowTests(TestCase):
         self.assertRedirects(response, reverse("leave-requests"))
         leave = PengajuanIzin.objects.get(guru=self.teacher, jenis_izin="pulang_awal")
         self.assertEqual(leave.status_approval, "pending")
-        self.assertEqual(leave.jam_mulai_pulang_diminta, time(8, 45))
         self.assertEqual(leave.jam_pulang_diminta, time(9, 0))
         self.assertFalse(leave.file_bukti)
 
@@ -510,7 +532,6 @@ class LeaveRequestWorkflowTests(TestCase):
             "jenis_izin": "pulang_awal",
             "tgl_mulai": departure_date.isoformat(),
             "tgl_selesai": (departure_date + timedelta(days=1)).isoformat(),
-            "jam_mulai_pulang_diminta": "08:45",
             "jam_pulang_diminta": "09:00",
             "alasan": "Keperluan keluarga.",
             "jadwal_pelajaran-TOTAL_FORMS": "0",
@@ -575,6 +596,8 @@ class LeaveRequestWorkflowTests(TestCase):
         self.assertContains(response, "Keterangan kelas yang dilukirkan")
         self.assertContains(response, "Nama guru yang diajak lukiran")
         self.assertContains(response, "Lampiran bukti")
+        self.assertContains(response, 'name="jam_pulang_diminta"')
+        self.assertNotContains(response, 'name="jam_mulai_pulang_diminta"')
 
 
 class AttendanceReportTests(TestCase):

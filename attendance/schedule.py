@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, datetime, time
 
 from django.db import transaction
 from django.utils import timezone
@@ -11,7 +11,7 @@ from core.models import (
     PengaturanWaktuPresensi,
 )
 
-from .models import AbsensiLog
+from .models import AbsensiLog, PengajuanIzin
 
 
 class AttendanceScheduleError(Exception):
@@ -85,6 +85,24 @@ def record_attendance_event(
                 raise AttendanceScheduleError(
                     f"Waktu presensi masuk hari ini sudah berakhir pukul {schedule.jam_mulai_pulang:%H:%M}."
                 )
+            approved_leave = PengajuanIzin.objects.filter(
+                guru=guru,
+                jenis_izin="pulang_awal",
+                tgl_mulai=today,
+                status_approval="disetujui",
+                jam_pulang_diminta__isnull=False,
+            ).first()
+            if approved_leave and local_time >= approved_leave.jam_pulang_diminta:
+                raise AttendanceScheduleError("Waktu presensi masuk sudah melewati jam pulang yang disetujui.")
+            attendance_values = {}
+            if approved_leave:
+                attendance_values = {
+                    "waktu_pulang": timezone.make_aware(
+                        datetime.combine(today, approved_leave.jam_pulang_diminta),
+                        timezone.get_current_timezone(),
+                    ),
+                    "status_pulang": "pulang_cepat",
+                }
             log = AbsensiLog.objects.create(
                 guru=guru,
                 tanggal=today,
@@ -94,6 +112,7 @@ def record_attendance_event(
                 foto_masuk=photo,
                 metode_scan=method,
                 status="terlambat" if local_time > schedule.batas_terlambat else "hadir",
+                **attendance_values,
             )
             return log, "masuk"
 

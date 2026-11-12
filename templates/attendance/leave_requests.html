@@ -97,18 +97,13 @@
 
                 </div>
 
-                <div class="hidden grid gap-3 sm:grid-cols-2" data-early-departure>
-                    <label class="block text-sm font-semibold text-[#34483f]" for="{{ form.jam_mulai_pulang_diminta.id_for_label }}">
-                        <span class="mb-1.5 block">Presensi pulang dibuka</span>
-                        {{ form.jam_mulai_pulang_diminta }}
-                        {% for error in form.jam_mulai_pulang_diminta.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
-                    </label>
+                <div class="hidden" data-early-departure>
                     <label class="block text-sm font-semibold text-[#34483f]" for="{{ form.jam_pulang_diminta.id_for_label }}">
                         <span class="mb-1.5 block">Jam pulang yang diminta</span>
                         {{ form.jam_pulang_diminta }}
                         {% for error in form.jam_pulang_diminta.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
                     </label>
-                    <p class="text-xs leading-5 text-[#63736b] sm:col-span-2">Permohonan hanya berlaku pada satu tanggal. Pengajuan harus disetujui sebelum waktu presensi pulang dibuka.</p>
+                    <p class="mt-2 text-xs leading-5 text-[#63736b]">Permohonan hanya berlaku pada satu tanggal. Setelah disetujui, jam pulang akan tercatat otomatis tanpa scan barcode pulang.</p>
                 </div>
 
                 <!-- Alasan izin -->
@@ -228,7 +223,7 @@
                                     {{ leave_request.tgl_selesai|date:"d M Y" }}
                                 </p>
                                 {% if leave_request.jenis_izin == "pulang_awal" %}
-                                    <p class="mt-2 text-sm font-medium text-[#52625b]">Presensi pulang dibuka {{ leave_request.jam_mulai_pulang_diminta|time:"H:i" }} · Jam pulang diminta {{ leave_request.jam_pulang_diminta|time:"H:i" }}</p>
+                                    <p class="mt-2 text-sm font-medium text-[#52625b]">Jam pulang diminta {{ leave_request.jam_pulang_diminta|time:"H:i" }}</p>
                                 {% endif %}
                             </div>
 
@@ -384,12 +379,14 @@ const endDate = document.querySelector('#id_tgl_selesai');
 const earlyDepartureFields = document.querySelector('[data-early-departure]');
 const standardLeaveFields = document.querySelectorAll('[data-standard-leave]');
 const evidenceInput = document.querySelector('#id_file_bukti');
+const departureInput = document.querySelector('#id_jam_pulang_diminta');
 
 function updateLeaveFields() {
     const earlyDeparture = leaveType.value === 'pulang_awal';
     earlyDepartureFields.classList.toggle('hidden', !earlyDeparture);
     standardLeaveFields.forEach(field => field.classList.toggle('hidden', earlyDeparture));
     evidenceInput.required = !earlyDeparture;
+    departureInput.required = earlyDeparture;
 }
 
 leaveType.addEventListener('change', () => {

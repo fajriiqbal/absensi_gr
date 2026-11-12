@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import Http404, HttpResponse, JsonResponse
@@ -8,7 +10,7 @@ from django.views.decorators.http import require_GET, require_POST
 from accounts.models import UserGuru
 from attendance.models import AbsensiLog, PengajuanIzin
 from attendance.reporting import MONTH_NAMES, build_leave_workbook, report_month_name, resolve_report_period
-from core.models import JadwalWaktuPresensiGuru, PengaturanWaktuPresensi
+from core.models import PengaturanWaktuPresensi
 
 
 REPORT_MONTH_OPTIONS = tuple(enumerate(MONTH_NAMES, start=1))
@@ -133,34 +135,36 @@ def approve_leave(request, pk):
 
         if decision == "disetujui" and leave.jenis_izin == "pulang_awal":
             if (
-                not leave.jam_mulai_pulang_diminta
-                or not leave.jam_pulang_diminta
-                or leave.jam_mulai_pulang_diminta >= leave.jam_pulang_diminta
-                or leave.jam_mulai_pulang_diminta
-                <= PengaturanWaktuPresensi.get_settings().batas_terlambat
+                not leave.jam_pulang_diminta
+                or leave.jam_pulang_diminta <= PengaturanWaktuPresensi.get_settings().batas_terlambat
             ):
                 return JsonResponse(
                     {"status": "error", "message": "Jam pulang pada pengajuan tidak valid."},
                     status=400,
                 )
-            local_now = timezone.localtime()
             today = timezone.localdate()
-            if leave.tgl_mulai < today or (
-                leave.tgl_mulai == today
-                and local_now.time().replace(tzinfo=None) >= leave.jam_mulai_pulang_diminta
-            ):
+            if leave.tgl_mulai < today:
                 return JsonResponse(
-                    {"status": "error", "message": "Jadwal pulang sudah dimulai atau tanggalnya sudah lewat."},
+                    {"status": "error", "message": "Tanggal izin pulang sudah lewat."},
                     status=400,
                 )
-            JadwalWaktuPresensiGuru.objects.update_or_create(
-                guru=leave.guru,
-                tanggal=leave.tgl_mulai,
-                defaults={
-                    "jam_mulai_pulang": leave.jam_mulai_pulang_diminta,
-                    "jam_pulang": leave.jam_pulang_diminta,
-                },
-            )
+            if leave.tgl_mulai == today:
+                attendance = AbsensiLog.objects.select_for_update().filter(
+                    guru=leave.guru,
+                    tanggal=today,
+                ).first()
+                if attendance and attendance.waktu_pulang:
+                    return JsonResponse(
+                        {"status": "error", "message": "Presensi pulang sudah tercatat."},
+                        status=409,
+                    )
+                if attendance:
+                    attendance.waktu_pulang = timezone.make_aware(
+                        datetime.combine(leave.tgl_mulai, leave.jam_pulang_diminta),
+                        timezone.get_current_timezone(),
+                    )
+                    attendance.status_pulang = "pulang_cepat"
+                    attendance.save(update_fields=("waktu_pulang", "status_pulang"))
 
         leave.status_approval = decision
         leave.approved_by = request.user

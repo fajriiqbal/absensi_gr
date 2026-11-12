@@ -49,7 +49,7 @@
           <div>
             <p class="font-semibold">{{ leave.guru.nama_lengkap }} <span class="font-normal text-[#63736b]">· {{ leave.get_jenis_izin_display }}</span></p>
             <p class="mt-1 text-sm text-[#63736b]">{{ leave.tgl_mulai|date:"d M Y" }}{% if leave.tgl_selesai != leave.tgl_mulai %} - {{ leave.tgl_selesai|date:"d M Y" }}{% endif %} · {{ leave.alasan|truncatechars:140 }}</p>
-            {% if leave.jenis_izin == "pulang_awal" %}<p class="mt-2 text-sm font-medium text-[#52625b]">Presensi pulang dibuka {{ leave.jam_mulai_pulang_diminta|time:"H:i" }} · Jam pulang diminta {{ leave.jam_pulang_diminta|time:"H:i" }}</p>{% endif %}
+            {% if leave.jenis_izin == "pulang_awal" %}<p class="mt-2 text-sm font-medium text-[#52625b]">Jam pulang diminta {{ leave.jam_pulang_diminta|time:"H:i" }}</p>{% endif %}
             {% for schedule in leave.jadwal_pelajaran.all %}<p class="mt-2 border-l-2 border-[#9bb9a7] pl-3 text-sm text-[#52625b]">{{ schedule.get_hari_display }}, {{ schedule.tanggal|date:"d M Y" }} · {{ schedule.mapel_diampu }} ({{ schedule.jam_pelajaran_diampu }}) → {{ schedule.mapel_lukiran }} ({{ schedule.jam_lukiran }}) · Kelas {{ schedule.keterangan_kelas }} · Guru rekan: {{ schedule.guru_lukiran.nama_lengkap }}</p>{% endfor %}
             {% if leave.file_bukti %}<a class="mt-2 inline-block text-sm text-[#17634c] underline" href="{% url 'private-leave-document' leave.pk %}" target="_blank" rel="noopener">Lihat bukti</a>{% endif %}
             <p class="mt-2 text-sm text-[#a34431]" data-result></p>

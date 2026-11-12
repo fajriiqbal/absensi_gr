@@ -83,13 +83,8 @@ class PengajuanIzin(models.Model):
             errors = {}
             if self.tgl_mulai and self.tgl_selesai and self.tgl_mulai != self.tgl_selesai:
                 errors["tgl_selesai"] = "Izin pulang lebih awal hanya berlaku untuk satu tanggal."
-            if not self.jam_mulai_pulang_diminta:
-                errors["jam_mulai_pulang_diminta"] = "Jam mulai presensi pulang wajib diisi."
             if not self.jam_pulang_diminta:
                 errors["jam_pulang_diminta"] = "Jam pulang yang diminta wajib diisi."
-            if self.jam_mulai_pulang_diminta and self.jam_pulang_diminta:
-                if self.jam_mulai_pulang_diminta >= self.jam_pulang_diminta:
-                    errors["jam_pulang_diminta"] = "Jam pulang harus setelah presensi pulang dibuka."
             if errors:
                 raise ValidationError(errors)
 

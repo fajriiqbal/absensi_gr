@@ -15,7 +15,6 @@ class PengajuanIzinForm(forms.ModelForm):
             "jenis_izin",
             "tgl_mulai",
             "tgl_selesai",
-            "jam_mulai_pulang_diminta",
             "jam_pulang_diminta",
             "alasan",
             "file_bukti",
@@ -24,7 +23,6 @@ class PengajuanIzinForm(forms.ModelForm):
             "jenis_izin": forms.Select(attrs={"class": "field"}),
             "tgl_mulai": forms.DateInput(attrs={"class": "field", "type": "date"}),
             "tgl_selesai": forms.DateInput(attrs={"class": "field", "type": "date"}),
-            "jam_mulai_pulang_diminta": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
             "jam_pulang_diminta": forms.TimeInput(format="%H:%M", attrs={"class": "field", "type": "time"}),
             "alasan": forms.Textarea(attrs={"class": "field", "rows": 4, "maxlength": 2000}),
             "file_bukti": forms.ClearableFileInput(attrs={"class": "field", "accept": ".pdf,.jpg,.jpeg,.png"}),
@@ -32,8 +30,12 @@ class PengajuanIzinForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["jam_mulai_pulang_diminta"].required = False
-        self.fields["jam_pulang_diminta"].required = False
+        leave_type = (
+            self.data.get("jenis_izin")
+            if self.is_bound
+            else self.initial.get("jenis_izin")
+        )
+        self.fields["jam_pulang_diminta"].required = leave_type == "pulang_awal"
         self.fields["file_bukti"].required = (
             self.data.get("jenis_izin") != "pulang_awal"
             if self.is_bound
@@ -52,21 +54,13 @@ class PengajuanIzinForm(forms.ModelForm):
                 self.add_error("tgl_selesai", "Izin pulang lebih awal hanya berlaku untuk satu tanggal.")
             if start and start < timezone.localdate():
                 self.add_error("tgl_mulai", "Tanggal izin pulang lebih awal tidak boleh sudah lewat.")
-            checkout_start = cleaned_data.get("jam_mulai_pulang_diminta")
             departure = cleaned_data.get("jam_pulang_diminta")
-            if checkout_start and checkout_start <= PengaturanWaktuPresensi.get_settings().batas_terlambat:
-                self.add_error(
-                    "jam_mulai_pulang_diminta",
-                    "Presensi pulang harus dibuka setelah batas waktu tepat waktu.",
-                )
-            if checkout_start and departure and checkout_start >= departure:
-                self.add_error("jam_pulang_diminta", "Jam pulang harus setelah presensi pulang dibuka.")
-            if (
-                start == timezone.localdate()
-                and checkout_start
-                and timezone.localtime().time().replace(tzinfo=None) >= checkout_start
-            ):
-                self.add_error("jam_mulai_pulang_diminta", "Jam presensi pulang yang diminta sudah lewat.")
+            if not departure:
+                self.add_error("jam_pulang_diminta", "Jam pulang yang diminta wajib diisi.")
+            elif departure <= PengaturanWaktuPresensi.get_settings().batas_terlambat:
+                self.add_error("jam_pulang_diminta", "Jam pulang harus setelah batas waktu tepat waktu.")
+            elif start == timezone.localdate() and departure <= timezone.localtime().time().replace(tzinfo=None):
+                self.add_error("jam_pulang_diminta", "Jam pulang yang diminta sudah lewat.")
             if start and self.instance.guru_id:
                 existing_request = PengajuanIzin.objects.filter(
                     guru=self.instance.guru,
@@ -82,7 +76,6 @@ class PengajuanIzinForm(forms.ModelForm):
                 ).exists():
                     self.add_error("tgl_mulai", "Sudah ada pengajuan atau jadwal pulang khusus untuk tanggal tersebut.")
         else:
-            cleaned_data["jam_mulai_pulang_diminta"] = None
             cleaned_data["jam_pulang_diminta"] = None
         return cleaned_data
 

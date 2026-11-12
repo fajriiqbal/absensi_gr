@@ -20,7 +20,7 @@
             <p class="font-semibold">{{ leave.guru.nama_lengkap }} <span class="font-normal text-[#63736b]">· {{ leave.get_jenis_izin_display }}</span></p>
             <p class="mt-1 text-sm text-[#63736b]">{{ leave.tgl_mulai|date:"d M Y" }}{% if leave.tgl_selesai != leave.tgl_mulai %} - {{ leave.tgl_selesai|date:"d M Y" }}{% endif %}</p>
             {% if leave.jenis_izin == "pulang_awal" %}
-              <p class="mt-2 text-sm font-medium text-[#34483f]">Presensi pulang dibuka {{ leave.jam_mulai_pulang_diminta|time:"H:i" }} · Jam pulang diminta {{ leave.jam_pulang_diminta|time:"H:i" }}</p>
+              <p class="mt-2 text-sm font-medium text-[#34483f]">Jam pulang diminta {{ leave.jam_pulang_diminta|time:"H:i" }}</p>
             {% endif %}
             <p class="mt-2 whitespace-pre-line text-sm text-[#52625b]">{{ leave.alasan|truncatechars:300 }}</p>
             {% if leave.file_bukti and request.user.role == "kamad" or leave.file_bukti and request.user.is_staff %}

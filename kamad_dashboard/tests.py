@@ -1,4 +1,4 @@
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from io import BytesIO
 from tempfile import TemporaryDirectory
 
@@ -10,7 +10,6 @@ from openpyxl import load_workbook
 
 from accounts.models import UserGuru
 from attendance.models import AbsensiLog, JadwalPelajaranIzin, PengajuanIzin
-from core.models import JadwalWaktuPresensiGuru
 
 
 class DashboardTests(TestCase):
@@ -146,19 +145,18 @@ class ApprovalTests(TestCase):
         )
         departure_date = timezone.localdate() + timedelta(days=1)
 
-        def create_request(guru, start, departure):
+        def create_request(guru, departure):
             return PengajuanIzin.objects.create(
                 guru=guru,
                 jenis_izin="pulang_awal",
                 tgl_mulai=departure_date,
                 tgl_selesai=departure_date,
-                jam_mulai_pulang_diminta=start,
                 jam_pulang_diminta=departure,
                 alasan="Keperluan keluarga.",
             )
 
-        tu_request = create_request(teacher, time(8, 45), time(9, 0))
-        kamad_request = create_request(other_teacher, time(10, 45), time(11, 0))
+        tu_request = create_request(teacher, time(9, 0))
+        kamad_request = create_request(other_teacher, time(11, 0))
 
         self.client.force_login(operator)
         queue = self.client.get(reverse("leave-approvals"))
@@ -169,20 +167,57 @@ class ApprovalTests(TestCase):
         self.assertEqual(response.status_code, 200)
         tu_request.refresh_from_db()
         self.assertEqual(tu_request.approved_by, operator)
-        self.assertEqual(
-            JadwalWaktuPresensiGuru.objects.get(guru=teacher, tanggal=departure_date).jam_pulang,
-            time(9, 0),
-        )
+        self.assertFalse(AbsensiLog.objects.filter(guru=teacher, tanggal=departure_date).exists())
 
         self.client.force_login(kamad)
         response = self.client.post(reverse("approve-leave", args=(kamad_request.pk,)), {"decision": "disetujui"})
         self.assertEqual(response.status_code, 200)
         kamad_request.refresh_from_db()
         self.assertEqual(kamad_request.approved_by, kamad)
-        self.assertEqual(
-            JadwalWaktuPresensiGuru.objects.get(guru=other_teacher, tanggal=departure_date).jam_pulang,
-            time(11, 0),
+
+    def test_approval_fills_existing_attendance_checkout_at_requested_time(self):
+        kamad = UserGuru.objects.create_user(
+            username="early-checkout-kamad",
+            nip="900020",
+            nama_lengkap="Kepala",
+            email="early-checkout-kamad@example.test",
+            password="test-password",
+            role="kamad",
         )
+        teacher = UserGuru.objects.create_user(
+            username="early-checkout-teacher",
+            nip="900021",
+            nama_lengkap="Guru",
+            email="early-checkout-teacher@example.test",
+            password="test-password",
+        )
+        today = timezone.localdate()
+        departure = time(12, 0)
+        leave = PengajuanIzin.objects.create(
+            guru=teacher,
+            jenis_izin="pulang_awal",
+            tgl_mulai=today,
+            tgl_selesai=today,
+            jam_pulang_diminta=departure,
+            alasan="Keperluan keluarga.",
+        )
+        attendance = AbsensiLog.objects.create(
+            guru=teacher,
+            tanggal=today,
+            waktu_masuk=timezone.now(),
+            metode_scan="qr_tv",
+        )
+        self.client.force_login(kamad)
+
+        response = self.client.post(reverse("approve-leave", args=(leave.pk,)), {"decision": "disetujui"})
+
+        self.assertEqual(response.status_code, 200)
+        attendance.refresh_from_db()
+        self.assertEqual(
+            attendance.waktu_pulang,
+            timezone.make_aware(datetime.combine(today, departure), timezone.get_current_timezone()),
+        )
+        self.assertEqual(attendance.status_pulang, "pulang_cepat")
 
     def test_operator_cannot_approve_regular_leave(self):
         operator = UserGuru.objects.create_user(

@@ -67,7 +67,7 @@
               <h3 class="font-bold text-[#173f35]">{{ leave.get_jenis_izin_display }}</h3>
               <p class="mt-1 text-sm leading-5 text-[#63736b]">{{ leave.tgl_mulai|date:"d M Y" }} – {{ leave.tgl_selesai|date:"d M Y" }}</p>
               {% if leave.jenis_izin == "pulang_awal" %}
-                <p class="mt-2 text-sm font-medium text-[#52625b]">Presensi pulang dibuka {{ leave.jam_mulai_pulang_diminta|time:"H:i" }} · Jam pulang diminta {{ leave.jam_pulang_diminta|time:"H:i" }}</p>
+              <p class="mt-2 text-sm font-medium text-[#52625b]">Jam pulang diminta {{ leave.jam_pulang_diminta|time:"H:i" }}</p>
               {% endif %}
             </div>
             {% if leave.status_approval == "disetujui" %}
