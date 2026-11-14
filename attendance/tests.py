@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
 from PIL import Image
+from reportlab.platypus import Paragraph
 
 from accounts.models import UserGuru
 from core.models import (
@@ -462,28 +463,13 @@ class LeaveRequestWorkflowTests(TestCase):
 
     def test_teacher_submits_and_downloads_letter_after_approval(self):
         start = timezone.localdate() + timedelta(days=1)
-        schedule_buddy = UserGuru.objects.create_user(
-            username="schedule-buddy", nip="198022", nama_lengkap="Guru Rekan", email="schedule-buddy@example.test", password="StrongPass123!"
-        )
-        day_name = ("senin", "selasa", "rabu", "kamis", "jumat", "sabtu", "minggu")[start.weekday()]
         response = self.client.post(reverse("leave-requests"), {
             "jenis_izin": "sakit",
             "tgl_mulai": start.isoformat(),
             "tgl_selesai": (start + timedelta(days=1)).isoformat(),
             "alasan": "Perlu beristirahat karena sakit.",
+            "tugas_kelas": "Mengerjakan latihan halaman 12.",
             "file_bukti": SimpleUploadedFile("bukti.pdf", b"%PDF-1.4 bukti", content_type="application/pdf"),
-            "jadwal_pelajaran-TOTAL_FORMS": "1",
-            "jadwal_pelajaran-INITIAL_FORMS": "0",
-            "jadwal_pelajaran-MIN_NUM_FORMS": "0",
-            "jadwal_pelajaran-MAX_NUM_FORMS": "20",
-            "jadwal_pelajaran-0-hari": day_name,
-            "jadwal_pelajaran-0-tanggal": start.isoformat(),
-            "jadwal_pelajaran-0-mapel_diampu": "Bahasa Indonesia",
-            "jadwal_pelajaran-0-jam_pelajaran_diampu": "Jam ke-2",
-            "jadwal_pelajaran-0-mapel_lukiran": "Bahasa Inggris",
-            "jadwal_pelajaran-0-jam_lukiran": "Jam ke-3",
-            "jadwal_pelajaran-0-keterangan_kelas": "VII-A",
-            "jadwal_pelajaran-0-guru_lukiran": schedule_buddy.pk,
         })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], reverse("leave-requests"))
@@ -492,10 +478,7 @@ class LeaveRequestWorkflowTests(TestCase):
         self.assertContains(response, 'data-message-level="success"')
         leave = PengajuanIzin.objects.get(guru=self.teacher)
         self.assertEqual(leave.status_approval, "pending")
-        schedule = leave.jadwal_pelajaran.get()
-        self.assertEqual(schedule.mapel_diampu, "Bahasa Indonesia")
-        self.assertEqual(schedule.guru_lukiran, schedule_buddy)
-        self.assertEqual(schedule.keterangan_kelas, "VII-A")
+        self.assertEqual(leave.tugas_kelas, "Mengerjakan latihan halaman 12.")
         self.assertEqual(self.client.get(reverse("leave-letter", args=(leave.pk,))).status_code, 404)
 
         kamad = UserGuru.objects.create_user(
@@ -514,10 +497,17 @@ class LeaveRequestWorkflowTests(TestCase):
         teacher_history_page = self.client.get(reverse("teacher-history"))
         self.assertContains(teacher_history_page, "Unduh surat izin PDF")
         self.assertContains(teacher_history_page, "data-download-progress")
-        letter = self.client.get(reverse("leave-letter", args=(leave.pk,)))
+        captured_text = []
+        with patch(
+            "attendance.letters.Paragraph",
+            side_effect=lambda text, style: (captured_text.append(text) or Paragraph(text, style)),
+        ):
+            letter = self.client.get(reverse("leave-letter", args=(leave.pk,)))
         self.assertEqual(letter.status_code, 200)
         self.assertEqual(letter["Content-Type"], "application/pdf")
         self.assertTrue(letter.content.startswith(b"%PDF"))
+        self.assertTrue(any("Tugas kelas" in text for text in captured_text))
+        self.assertTrue(any("Mengerjakan latihan halaman 12." in text for text in captured_text))
 
         another_teacher = UserGuru.objects.create_user(
             username="other-teacher", nip="198021", nama_lengkap="Guru Lain", email="other@example.test", password="StrongPass123!"
@@ -533,10 +523,6 @@ class LeaveRequestWorkflowTests(TestCase):
             "tgl_selesai": departure_date.isoformat(),
             "jam_pulang_diminta": "09:00",
             "alasan": "Keperluan keluarga yang mendesak.",
-            "jadwal_pelajaran-TOTAL_FORMS": "0",
-            "jadwal_pelajaran-INITIAL_FORMS": "0",
-            "jadwal_pelajaran-MIN_NUM_FORMS": "0",
-            "jadwal_pelajaran-MAX_NUM_FORMS": "20",
         })
 
         self.assertRedirects(response, reverse("leave-requests"))
@@ -553,10 +539,6 @@ class LeaveRequestWorkflowTests(TestCase):
             "tgl_selesai": (departure_date + timedelta(days=1)).isoformat(),
             "jam_pulang_diminta": "09:00",
             "alasan": "Keperluan keluarga.",
-            "jadwal_pelajaran-TOTAL_FORMS": "0",
-            "jadwal_pelajaran-INITIAL_FORMS": "0",
-            "jadwal_pelajaran-MIN_NUM_FORMS": "0",
-            "jadwal_pelajaran-MAX_NUM_FORMS": "20",
         })
 
         self.assertEqual(response.status_code, 200)
@@ -566,57 +548,56 @@ class LeaveRequestWorkflowTests(TestCase):
     def test_invalid_date_range_does_not_create_request(self):
         today = timezone.localdate()
         response = self.client.post(reverse("leave-requests"), {
-            "jenis_izin": "izin",
+            "jenis_izin": "sakit",
             "tgl_mulai": (today + timedelta(days=2)).isoformat(),
             "tgl_selesai": (today + timedelta(days=1)).isoformat(),
             "alasan": "Keperluan keluarga.",
             "file_bukti": SimpleUploadedFile("bukti.pdf", b"%PDF-1.4 bukti", content_type="application/pdf"),
-            "jadwal_pelajaran-TOTAL_FORMS": "0",
-            "jadwal_pelajaran-INITIAL_FORMS": "0",
-            "jadwal_pelajaran-MIN_NUM_FORMS": "0",
-            "jadwal_pelajaran-MAX_NUM_FORMS": "20",
         })
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Pengajuan izin belum terkirim. Periksa kembali data yang wajib diisi.")
         self.assertEqual(PengajuanIzin.objects.filter(guru=self.teacher).count(), 0)
 
-    def test_schedule_requires_matching_day_and_leave_date_range(self):
-        buddy = UserGuru.objects.create_user(
-            username="validation-buddy", nip="198023", nama_lengkap="Guru Pengganti", email="validation-buddy@example.test", password="StrongPass123!"
-        )
+    def test_teacher_cannot_submit_removed_leave_type(self):
         start = timezone.localdate() + timedelta(days=1)
-        wrong_day = ("senin", "selasa", "rabu", "kamis", "jumat", "sabtu", "minggu")[(start.weekday() + 1) % 7]
         response = self.client.post(reverse("leave-requests"), {
             "jenis_izin": "izin",
             "tgl_mulai": start.isoformat(),
             "tgl_selesai": start.isoformat(),
             "alasan": "Keperluan keluarga.",
             "file_bukti": SimpleUploadedFile("bukti.pdf", b"%PDF bukti", content_type="application/pdf"),
-            "jadwal_pelajaran-TOTAL_FORMS": "1",
-            "jadwal_pelajaran-INITIAL_FORMS": "0",
-            "jadwal_pelajaran-MIN_NUM_FORMS": "0",
-            "jadwal_pelajaran-MAX_NUM_FORMS": "20",
-            "jadwal_pelajaran-0-hari": wrong_day,
-            "jadwal_pelajaran-0-tanggal": start.isoformat(),
-            "jadwal_pelajaran-0-mapel_diampu": "IPA",
-            "jadwal_pelajaran-0-jam_pelajaran_diampu": "Jam ke-1",
-            "jadwal_pelajaran-0-mapel_lukiran": "Matematika",
-            "jadwal_pelajaran-0-jam_lukiran": "Jam ke-2",
-            "jadwal_pelajaran-0-keterangan_kelas": "VIII-B",
-            "jadwal_pelajaran-0-guru_lukiran": buddy.pk,
         })
         self.assertEqual(response.status_code, 200)
         self.assertEqual(PengajuanIzin.objects.filter(guru=self.teacher).count(), 0)
 
-    def test_leave_form_renders_schedule_fields_and_required_evidence(self):
+    def test_leave_form_only_offers_requested_types_and_has_no_schedule_fields(self):
         response = self.client.get(reverse("leave-requests"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Mapel yang diampu")
-        self.assertContains(response, "Keterangan kelas yang dilukirkan")
-        self.assertContains(response, "Nama guru yang diajak lukiran")
+        self.assertContains(response, "Izin Datang Terlambat")
+        self.assertContains(response, "Izin Pulang Lebih Awal")
+        self.assertNotContains(response, "Izin Personal")
+        self.assertNotContains(response, "Jam lukiran")
+        self.assertNotContains(response, "schedule_formset")
+        self.assertContains(response, 'name="tugas_kelas"')
         self.assertContains(response, "Lampiran bukti")
+        self.assertContains(response, 'name="jam_datang_diminta"')
         self.assertContains(response, 'name="jam_pulang_diminta"')
         self.assertNotContains(response, 'name="jam_mulai_pulang_diminta"')
+
+    def test_teacher_submits_late_arrival_request_without_evidence(self):
+        arrival_date = timezone.localdate() + timedelta(days=1)
+        response = self.client.post(reverse("leave-requests"), {
+            "jenis_izin": "datang_terlambat",
+            "tgl_mulai": arrival_date.isoformat(),
+            "tgl_selesai": arrival_date.isoformat(),
+            "jam_datang_diminta": "09:00",
+            "alasan": "Keperluan keluarga.",
+        })
+
+        self.assertRedirects(response, reverse("leave-requests"))
+        leave = PengajuanIzin.objects.get(guru=self.teacher, jenis_izin="datang_terlambat")
+        self.assertEqual(leave.jam_datang_diminta, time(9, 0))
+        self.assertFalse(leave.file_bukti)
 
 
 class AttendanceReportTests(TestCase):

@@ -16,7 +16,7 @@
         </h1>
 
         <p class="mt-2 max-w-2xl text-sm leading-6 text-[#63736b]">
-            Ajukan izin, termasuk permohonan pulang lebih awal, dan pantau keputusan persetujuan.
+            Ajukan izin sakit, datang terlambat, atau pulang lebih awal, lalu pantau keputusan persetujuan.
         </p>
     </header>
 
@@ -28,7 +28,7 @@
                     Buat pengajuan
                 </h2>
                 <p class="mt-1 text-sm leading-5 text-[#63736b]">
-                    Pilih jenis pengajuan, lengkapi informasi, lalu kirim untuk persetujuan Kamad atau TU.
+                    Pilih jenis pengajuan, lengkapi informasi, lalu kirim untuk persetujuan.
                 </p>
             </div>
 
@@ -106,6 +106,23 @@
                     <p class="mt-2 text-xs leading-5 text-[#63736b]">Permohonan hanya berlaku pada satu tanggal. Setelah disetujui, jam pulang akan tercatat otomatis tanpa scan barcode pulang.</p>
                 </div>
 
+                <div class="hidden" data-late-arrival>
+                    <label class="block text-sm font-semibold text-[#34483f]" for="{{ form.jam_datang_diminta.id_for_label }}">
+                        <span class="mb-1.5 block">Jam datang yang diminta</span>
+                        {{ form.jam_datang_diminta }}
+                        {% for error in form.jam_datang_diminta.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
+                    </label>
+                    <p class="mt-2 text-xs leading-5 text-[#63736b]">Permohonan hanya berlaku pada satu tanggal. Setelah disetujui, jam datang akan tercatat otomatis. Guru tetap scan barcode saat pulang.</p>
+                </div>
+
+                <div class="hidden" data-sick-leave>
+                    <label class="block text-sm font-semibold text-[#34483f]" for="{{ form.tugas_kelas.id_for_label }}">
+                        <span class="mb-1.5 block">Tugas kelas <span class="font-normal text-[#63736b]">(akan dicantumkan pada surat izin PDF)</span></span>
+                        {{ form.tugas_kelas }}
+                        {% for error in form.tugas_kelas.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
+                    </label>
+                </div>
+
                 <!-- Alasan izin -->
                 <label
                     class="block text-sm font-semibold text-[#34483f]"
@@ -121,63 +138,13 @@
                     {% endfor %}
                 </label>
 
-                <label class="block text-sm font-semibold text-[#34483f]" data-standard-leave for="{{ form.file_bukti.id_for_label }}">
-                    <span class="mb-1.5 block">Lampiran bukti <span class="font-normal text-[#63736b]">(PDF/JPG/PNG, maks. 5 MB)</span></span>
-                    {{ form.file_bukti }}
-                    {% for error in form.file_bukti.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
-                </label>
-
-                <section class="rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-4 sm:p-5" data-standard-leave>
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h3 class="font-bold text-[#173f35]">Jam pelajaran yang dialihkan</h3>
-                            <p class="mt-1 text-xs leading-5 text-[#63736b]">Tambahkan rincian jadwal jika ada jam pelajaran yang perlu dialihkan kepada guru lain.</p>
-                        </div>
-                        <span class="w-fit rounded-full bg-white px-3 py-1 text-xs font-medium text-[#63736b]">Maksimal 20 jadwal</span>
-                    </div>
-
-                    {{ schedule_formset.management_form }}
-                    {% if schedule_formset.non_form_errors %}<p class="mt-3 rounded-lg bg-[#fff2ee] p-3 text-sm leading-5 text-[#a34431]" role="alert">{{ schedule_formset.non_form_errors }}</p>{% endif %}
-                    <div id="schedule-forms" class="mt-4 space-y-4">
-                        {% for schedule_form in schedule_formset %}
-                            <fieldset class="schedule-row space-y-4 rounded-xl border border-[#dbe1dc] bg-white p-3 sm:p-4">
-                                <legend class="px-1 text-sm font-semibold text-[#173f35]">Jadwal <span class="schedule-number">{{ forloop.counter }}</span></legend>
-                                {{ schedule_form.id }}
-                                <div class="grid gap-4 sm:grid-cols-2">
-                                    <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Hari</span>{{ schedule_form.hari }}{% for error in schedule_form.hari.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
-                                    <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Tanggal</span>{{ schedule_form.tanggal }}{% for error in schedule_form.tanggal.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
-                                    <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Mapel yang diampu</span>{{ schedule_form.mapel_diampu }}{% for error in schedule_form.mapel_diampu.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
-                                    <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Jam pelajaran yang diampu</span>{{ schedule_form.jam_pelajaran_diampu }}{% for error in schedule_form.jam_pelajaran_diampu.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
-                                    <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Mapel lukiran</span>{{ schedule_form.mapel_lukiran }}{% for error in schedule_form.mapel_lukiran.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
-                                    <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Jam lukiran</span>{{ schedule_form.jam_lukiran }}{% for error in schedule_form.jam_lukiran.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
-                                    <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Keterangan kelas yang dilukirkan</span>{{ schedule_form.keterangan_kelas }}{% for error in schedule_form.keterangan_kelas.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
-                                    <label class="block text-sm font-medium text-[#34483f] sm:col-span-2"><span class="mb-1.5 block">Nama guru yang diajak lukiran</span>{{ schedule_form.guru_lukiran }}{% for error in schedule_form.guru_lukiran.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}</label>
-                                </div>
-                                <div class="hidden">{{ schedule_form.DELETE }}</div>
-                                <button class="remove-schedule min-h-11 w-full rounded-lg border border-[#ead0ca] bg-[#fff8f6] px-3 py-2 text-sm font-semibold text-[#a34431] sm:w-auto" type="button">Hapus jadwal ini</button>
-                            </fieldset>
-                        {% endfor %}
-                    </div>
-                    <template id="empty-schedule-form">
-                        <fieldset class="schedule-row space-y-4 rounded-xl border border-[#dbe1dc] bg-white p-3 sm:p-4">
-                            <legend class="px-1 text-sm font-semibold text-[#173f35]">Jadwal <span class="schedule-number"></span></legend>
-                            {{ schedule_formset.empty_form.id }}
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Hari</span>{{ schedule_formset.empty_form.hari }}</label>
-                                <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Tanggal</span>{{ schedule_formset.empty_form.tanggal }}</label>
-                                <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Mapel yang diampu</span>{{ schedule_formset.empty_form.mapel_diampu }}</label>
-                                <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Jam pelajaran yang diampu</span>{{ schedule_formset.empty_form.jam_pelajaran_diampu }}</label>
-                                <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Mapel lukiran</span>{{ schedule_formset.empty_form.mapel_lukiran }}</label>
-                                <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Jam lukiran</span>{{ schedule_formset.empty_form.jam_lukiran }}</label>
-                                <label class="block text-sm font-medium text-[#34483f]"><span class="mb-1.5 block">Keterangan kelas yang dilukirkan</span>{{ schedule_formset.empty_form.keterangan_kelas }}</label>
-                                <label class="block text-sm font-medium text-[#34483f] sm:col-span-2"><span class="mb-1.5 block">Nama guru yang diajak lukiran</span>{{ schedule_formset.empty_form.guru_lukiran }}</label>
-                            </div>
-                            <div class="hidden">{{ schedule_formset.empty_form.DELETE }}</div>
-                            <button class="remove-schedule min-h-11 w-full rounded-lg border border-[#ead0ca] bg-[#fff8f6] px-3 py-2 text-sm font-semibold text-[#a34431] sm:w-auto" type="button">Hapus jadwal ini</button>
-                        </fieldset>
-                    </template>
-                    <button id="add-schedule" class="button button-muted mt-3 min-h-11 w-full sm:w-auto" type="button">+ Tambah jadwal</button>
-                </section>
+                <div class="hidden" data-sick-leave>
+                    <label class="block text-sm font-semibold text-[#34483f]" for="{{ form.file_bukti.id_for_label }}">
+                        <span class="mb-1.5 block">Lampiran bukti <span class="font-normal text-[#63736b]">(PDF/JPG/PNG, maks. 5 MB)</span></span>
+                        {{ form.file_bukti }}
+                        {% for error in form.file_bukti.errors %}<span class="mt-1 block text-xs text-[#a34431]">{{ error }}</span>{% endfor %}
+                    </label>
+                </div>
 
                 <!-- Tombol kirim -->
                 <button
@@ -224,6 +191,8 @@
                                 </p>
                                 {% if leave_request.jenis_izin == "pulang_awal" %}
                                     <p class="mt-2 text-sm font-medium text-[#52625b]">Jam pulang diminta {{ leave_request.jam_pulang_diminta|time:"H:i" }}</p>
+                                {% elif leave_request.jenis_izin == "datang_terlambat" %}
+                                    <p class="mt-2 text-sm font-medium text-[#52625b]">Jam datang diminta {{ leave_request.jam_datang_diminta|time:"H:i" }}</p>
                                 {% endif %}
                             </div>
 
@@ -251,25 +220,18 @@
                             {{ leave_request.alasan }}
                         </p>
 
-                        {% with schedules=leave_request.jadwal_pelajaran.all %}
-                            {% if schedules %}
-                                <div class="mt-4 rounded-xl bg-[#f8faf8] p-3 sm:p-4">
-                                    <p class="text-xs font-bold uppercase tracking-wide text-[#52625b]">Jadwal pengalihan</p>
-                                    {% for schedule in schedules %}
-                                        <div class="mt-3 border-t border-[#dbe1dc] pt-3 text-sm leading-5 text-[#52625b] first:mt-2 first:border-0 first:pt-0">
-                                            <p class="font-semibold text-[#34483f]">{{ schedule.get_hari_display }}, {{ schedule.tanggal|date:"d M Y" }}</p>
-                                            <p class="mt-1 break-words">{{ schedule.mapel_diampu }} ({{ schedule.jam_pelajaran_diampu }}) <span aria-hidden="true">→</span> {{ schedule.mapel_lukiran }} ({{ schedule.jam_lukiran }})</p>
-                                            <p class="mt-1 break-words text-[#63736b]">Kelas {{ schedule.keterangan_kelas }} · Guru pengganti: {{ schedule.guru_lukiran.nama_lengkap }}</p>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        {% endwith %}
+                        {% if leave_request.jenis_izin == "sakit" and leave_request.tugas_kelas %}
+                            <p class="mt-3 whitespace-pre-line break-words text-sm leading-5 text-[#52625b]"><span class="font-semibold">Tugas kelas:</span> {{ leave_request.tugas_kelas }}</p>
+                        {% endif %}
 
                         <!-- Tindakan berdasarkan status -->
                         {% if leave_request.status_approval == "disetujui" and leave_request.jenis_izin == "pulang_awal" %}
 
                             <p class="mt-4 rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-3 text-sm text-[#17634c]">Permohonan pulang lebih awal disetujui.</p>
+
+                        {% elif leave_request.status_approval == "disetujui" and leave_request.jenis_izin == "datang_terlambat" %}
+
+                            <p class="mt-4 rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-3 text-sm text-[#17634c]">Permohonan datang terlambat disetujui. Jam datang telah tercatat; scan barcode saat pulang.</p>
 
                         {% elif leave_request.status_approval == "disetujui" %}
 
@@ -325,76 +287,34 @@ document.querySelectorAll('[data-flash-message][data-message-level~="success"]')
 {% if submission_error %}
 window.showGlassNotification('Pengajuan izin belum terkirim. Periksa kembali data yang wajib diisi.', 'error');
 {% endif %}
-
-const schedulePrefix = '{{ schedule_formset.prefix }}';
-const scheduleList = document.querySelector('#schedule-forms');
-const scheduleTotal = document.querySelector(`#id_${schedulePrefix}-TOTAL_FORMS`);
-const addScheduleButton = document.querySelector('#add-schedule');
-const scheduleTemplate = document.querySelector('#empty-schedule-form');
-
-function renumberSchedules() {
-    let number = 0;
-    scheduleList.querySelectorAll('.schedule-row').forEach(row => {
-        if (row.classList.contains('hidden')) return;
-        number += 1;
-        row.querySelector('.schedule-number').textContent = number;
-    });
-    addScheduleButton.disabled = Number(scheduleTotal.value) >= 20;
-}
-
-function updateDayFromDate(dateInput) {
-    if (!dateInput.value) return;
-    const dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
-    const daySelect = dateInput.closest('.schedule-row').querySelector('.jadwal-hari');
-    daySelect.value = dayNames[new Date(`${dateInput.value}T00:00:00`).getDay()];
-}
-
-scheduleList.addEventListener('click', event => {
-    if (!event.target.matches('.remove-schedule')) return;
-    const row = event.target.closest('.schedule-row');
-    const deleteInput = row.querySelector('input[type=checkbox][name$="-DELETE"]');
-    if (deleteInput) deleteInput.checked = true;
-    row.classList.add('hidden');
-    renumberSchedules();
-});
-
-scheduleList.addEventListener('change', event => {
-    if (event.target.matches('.jadwal-tanggal')) updateDayFromDate(event.target);
-});
-
-addScheduleButton.addEventListener('click', () => {
-    const index = Number(scheduleTotal.value);
-    if (index >= 20) return;
-    const markup = scheduleTemplate.innerHTML.replaceAll('__prefix__', index);
-    scheduleList.insertAdjacentHTML('beforeend', markup);
-    scheduleTotal.value = index + 1;
-    renumberSchedules();
-});
-
-renumberSchedules();
-
 const leaveType = document.querySelector('#id_jenis_izin');
 const startDate = document.querySelector('#id_tgl_mulai');
 const endDate = document.querySelector('#id_tgl_selesai');
 const earlyDepartureFields = document.querySelector('[data-early-departure]');
-const standardLeaveFields = document.querySelectorAll('[data-standard-leave]');
+const lateArrivalFields = document.querySelector('[data-late-arrival]');
+const sickLeaveFields = document.querySelectorAll('[data-sick-leave]');
 const evidenceInput = document.querySelector('#id_file_bukti');
 const departureInput = document.querySelector('#id_jam_pulang_diminta');
+const arrivalInput = document.querySelector('#id_jam_datang_diminta');
 
 function updateLeaveFields() {
     const earlyDeparture = leaveType.value === 'pulang_awal';
+    const lateArrival = leaveType.value === 'datang_terlambat';
+    const sickLeave = leaveType.value === 'sakit';
     earlyDepartureFields.classList.toggle('hidden', !earlyDeparture);
-    standardLeaveFields.forEach(field => field.classList.toggle('hidden', earlyDeparture));
-    evidenceInput.required = !earlyDeparture;
+    lateArrivalFields.classList.toggle('hidden', !lateArrival);
+    sickLeaveFields.forEach(field => field.classList.toggle('hidden', !sickLeave));
+    evidenceInput.required = sickLeave;
     departureInput.required = earlyDeparture;
+    arrivalInput.required = lateArrival;
 }
 
 leaveType.addEventListener('change', () => {
     updateLeaveFields();
-    if (leaveType.value === 'pulang_awal' && startDate.value) endDate.value = startDate.value;
+    if (['pulang_awal', 'datang_terlambat'].includes(leaveType.value) && startDate.value) endDate.value = startDate.value;
 });
 startDate.addEventListener('change', () => {
-    if (leaveType.value === 'pulang_awal') endDate.value = startDate.value;
+    if (['pulang_awal', 'datang_terlambat'].includes(leaveType.value)) endDate.value = startDate.value;
 });
 updateLeaveFields();
 </script>

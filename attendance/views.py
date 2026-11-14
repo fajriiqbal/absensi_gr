@@ -15,7 +15,7 @@ from core.geo import calculate_haversine, parse_coordinates
 from core.models import LokasiSekolah, TitikQRCetak
 from core.qr_engine import GURU_PREFIX, PRINTABLE_PREFIX, TV_PREFIX, generate_teacher_qr_token, verify_dynamic_qr_token, verify_teacher_qr_token
 
-from .forms import JadwalPelajaranIzinFormSetFactory, PengajuanIzinForm
+from .forms import PengajuanIzinForm
 from .letters import generate_leave_letter_pdf
 from .models import AbsensiLog, PengajuanIzin
 from .reporting import MONTH_NAMES, build_attendance_summary, build_attendance_workbook, report_month_name, resolve_report_period
@@ -101,34 +101,21 @@ def leave_requests(request):
     submission_error = False
     if request.method == "POST":
         form = PengajuanIzinForm(request.POST, request.FILES, instance=leave_instance)
-        schedule_formset = JadwalPelajaranIzinFormSetFactory(request.POST, instance=leave_instance)
-        form_is_valid = form.is_valid()
-        if form_is_valid:
-            leave_instance.tgl_mulai = form.cleaned_data["tgl_mulai"]
-            leave_instance.tgl_selesai = form.cleaned_data["tgl_selesai"]
-        is_early_departure = form.cleaned_data.get("jenis_izin") == "pulang_awal" if form_is_valid else False
-        schedules_are_valid = True if is_early_departure else schedule_formset.is_valid()
-        if form_is_valid and schedules_are_valid:
+        if form.is_valid():
             with transaction.atomic():
                 leave = form.save(commit=False)
                 leave.guru = request.user
                 leave.save()
-                if not is_early_departure:
-                    schedule_formset.instance = leave
-                    schedule_formset.save()
             messages.success(request, "Pengajuan izin berhasil dikirim untuk persetujuan.")
             return redirect("leave-requests")
         submission_error = True
     else:
         form = PengajuanIzinForm(instance=leave_instance)
-        schedule_formset = JadwalPelajaranIzinFormSetFactory(instance=leave_instance)
     return render(request, "attendance/leave_requests.html", {
         "form": form,
-        "schedule_formset": schedule_formset,
         "submission_error": submission_error,
         "requests": PengajuanIzin.objects.filter(guru=request.user)
-        .select_related("approved_by")
-        .prefetch_related("jadwal_pelajaran__guru_lukiran"),
+        .select_related("approved_by"),
     })
 
 

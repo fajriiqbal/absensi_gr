@@ -53,7 +53,7 @@ def dashboard(request):
 def leave_approvals(request):
     requests = PengajuanIzin.objects.filter(status_approval="pending")
     if request.user.role != "kamad" and not request.user.is_superuser:
-        requests = requests.filter(jenis_izin="pulang_awal")
+        requests = requests.filter(jenis_izin__in=("pulang_awal", "datang_terlambat"))
     return render(request, "kamad_dashboard/leave_approvals.html", {
         "pending_leaves": requests.select_related("guru")
         .prefetch_related("jadwal_pelajaran__guru_lukiran"),
@@ -125,9 +125,9 @@ def approve_leave(request, pk):
     with transaction.atomic():
         leave = get_object_or_404(PengajuanIzin.objects.select_for_update(), pk=pk)
         if request.user.role != "kamad" and not request.user.is_superuser:
-            if leave.jenis_izin != "pulang_awal":
+            if leave.jenis_izin not in {"pulang_awal", "datang_terlambat"}:
                 return JsonResponse(
-                    {"status": "error", "message": "Operator hanya dapat memproses izin pulang lebih awal."},
+                    {"status": "error", "message": "Operator hanya dapat memproses izin pulang lebih awal atau datang terlambat."},
                     status=403,
                 )
         if leave.status_approval != "pending":
@@ -165,6 +165,48 @@ def approve_leave(request, pk):
                     )
                     attendance.status_pulang = "pulang_cepat"
                     attendance.save(update_fields=("waktu_pulang", "status_pulang"))
+
+        if decision == "disetujui" and leave.jenis_izin == "datang_terlambat":
+            if (
+                not leave.jam_datang_diminta
+                or leave.jam_datang_diminta <= PengaturanWaktuPresensi.get_settings().batas_terlambat
+            ):
+                return JsonResponse(
+                    {"status": "error", "message": "Jam datang pada pengajuan tidak valid."},
+                    status=400,
+                )
+            today = timezone.localdate()
+            if leave.tgl_mulai < today:
+                return JsonResponse(
+                    {"status": "error", "message": "Tanggal izin datang terlambat sudah lewat."},
+                    status=400,
+                )
+            attendance_time = timezone.make_aware(
+                datetime.combine(leave.tgl_mulai, leave.jam_datang_diminta),
+                timezone.get_current_timezone(),
+            )
+            attendance = AbsensiLog.objects.select_for_update().filter(
+                guru=leave.guru,
+                tanggal=leave.tgl_mulai,
+            ).first()
+            if attendance and attendance.waktu_pulang:
+                return JsonResponse(
+                    {"status": "error", "message": "Presensi pulang sudah tercatat pada tanggal izin."},
+                    status=409,
+                )
+            if attendance:
+                attendance.waktu_masuk = attendance_time
+                attendance.status = "terlambat"
+                attendance.save(update_fields=("waktu_masuk", "status"))
+            else:
+                attendance = AbsensiLog.objects.create(
+                    guru=leave.guru,
+                    waktu_masuk=attendance_time,
+                    metode_scan="izin_telat",
+                    status="terlambat",
+                )
+                attendance.tanggal = leave.tgl_mulai
+                attendance.save(update_fields=("tanggal",))
 
         leave.status_approval = decision
         leave.approved_by = request.user

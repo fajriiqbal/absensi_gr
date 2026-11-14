@@ -297,6 +297,11 @@ def generate_leave_letter_pdf(leave):
             ),
         ],
     ]
+    if leave.jenis_izin == "sakit" and leave.tugas_kelas:
+        details.append([
+            Paragraph("Tugas kelas", label_style),
+            Paragraph(escape_text(leave.tugas_kelas), body_style),
+        ])
 
     table = Table(
         details,
@@ -323,74 +328,6 @@ def generate_leave_letter_pdf(leave):
         table,
         Spacer(1, 8 * mm),
     ])
-
-    schedules = list(
-        leave.jadwal_pelajaran.select_related("guru_lukiran").all()
-    )
-    if schedules:
-        schedule_heading = ParagraphStyle(
-            "ScheduleHeading",
-            parent=body_style,
-            fontName="Helvetica-Bold",
-            textColor=dark_green,
-        )
-        schedule_header_style = ParagraphStyle(
-            "ScheduleHeader",
-            parent=body_style,
-            fontName="Helvetica-Bold",
-            fontSize=7,
-            leading=9,
-            textColor=colors.white,
-        )
-        schedule_cell_style = ParagraphStyle(
-            "ScheduleCell",
-            parent=body_style,
-            fontSize=7,
-            leading=9,
-        )
-        schedule_rows = [[
-            Paragraph("Hari / Tanggal", schedule_header_style),
-            Paragraph("Mapel diampu", schedule_header_style),
-            Paragraph("Jam", schedule_header_style),
-            Paragraph("Mapel lukiran", schedule_header_style),
-            Paragraph("Jam lukiran", schedule_header_style),
-            Paragraph("Keterangan kelas", schedule_header_style),
-            Paragraph("Guru rekan", schedule_header_style),
-        ]]
-        for schedule in schedules:
-            schedule_rows.append([
-                Paragraph(
-                    f"{escape_text(schedule.get_hari_display())}<br/>{schedule.tanggal:%d-%m-%Y}",
-                    schedule_cell_style,
-                ),
-                Paragraph(escape_text(schedule.mapel_diampu), schedule_cell_style),
-                Paragraph(escape_text(schedule.jam_pelajaran_diampu), schedule_cell_style),
-                Paragraph(escape_text(schedule.mapel_lukiran), schedule_cell_style),
-                Paragraph(escape_text(schedule.jam_lukiran), schedule_cell_style),
-                Paragraph(escape_text(schedule.keterangan_kelas), schedule_cell_style),
-                Paragraph(escape_text(schedule.guru_lukiran.nama_lengkap), schedule_cell_style),
-            ])
-        schedule_table = Table(
-            schedule_rows,
-            colWidths=(27 * mm, 27 * mm, 18 * mm, 27 * mm, 18 * mm, 25 * mm, 25 * mm),
-            repeatRows=1,
-            hAlign="LEFT",
-        )
-        schedule_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), dark_green),
-            ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#dbe1dc")),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ]))
-        story.extend([
-            Paragraph("RINCIAN JAM PELAJARAN YANG DIALIHKAN", schedule_heading),
-            Spacer(1, 2 * mm),
-            schedule_table,
-            Spacer(1, 8 * mm),
-        ])
 
     story.append(
         Paragraph(

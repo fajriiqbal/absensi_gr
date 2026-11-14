@@ -5,7 +5,7 @@
   <header class="rounded-2xl border border-[#dbe1dc] bg-white p-5 shadow-sm sm:p-7">
     <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Pengelolaan Perizinan</p>
     <h1 class="mt-2 text-2xl font-bold text-[#173f35] sm:text-3xl">Persetujuan izin</h1>
-    <p class="mt-2 text-sm leading-6 text-[#63736b]">Tinjau dan setujui atau tolak pengajuan izin pulang lebih awal. Kamad juga dapat memproses pengajuan izin lainnya.</p>
+    <p class="mt-2 text-sm leading-6 text-[#63736b]">Tinjau dan setujui atau tolak pengajuan izin datang terlambat dan pulang lebih awal. Kamad juga dapat memproses pengajuan izin lainnya.</p>
   </header>
 
   <section id="approval" class="mt-6">
@@ -21,6 +21,8 @@
             <p class="mt-1 text-sm text-[#63736b]">{{ leave.tgl_mulai|date:"d M Y" }}{% if leave.tgl_selesai != leave.tgl_mulai %} - {{ leave.tgl_selesai|date:"d M Y" }}{% endif %}</p>
             {% if leave.jenis_izin == "pulang_awal" %}
               <p class="mt-2 text-sm font-medium text-[#34483f]">Jam pulang diminta {{ leave.jam_pulang_diminta|time:"H:i" }}</p>
+            {% elif leave.jenis_izin == "datang_terlambat" %}
+              <p class="mt-2 text-sm font-medium text-[#34483f]">Jam datang diminta {{ leave.jam_datang_diminta|time:"H:i" }}</p>
             {% endif %}
             <p class="mt-2 whitespace-pre-line text-sm text-[#52625b]">{{ leave.alasan|truncatechars:300 }}</p>
             {% if leave.file_bukti and request.user.role == "kamad" or leave.file_bukti and request.user.is_staff %}

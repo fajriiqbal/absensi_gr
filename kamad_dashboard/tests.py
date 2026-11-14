@@ -10,6 +10,8 @@ from openpyxl import load_workbook
 
 from accounts.models import UserGuru
 from attendance.models import AbsensiLog, JadwalPelajaranIzin, PengajuanIzin
+from attendance.schedule import record_attendance_event
+from core.models import PengaturanWaktuPresensi
 
 
 class DashboardTests(TestCase):
@@ -218,6 +220,63 @@ class ApprovalTests(TestCase):
             timezone.make_aware(datetime.combine(today, departure), timezone.get_current_timezone()),
         )
         self.assertEqual(attendance.status_pulang, "pulang_cepat")
+
+    def test_late_arrival_approval_records_requested_time_and_checkout_scan_works(self):
+        operator = UserGuru.objects.create_user(
+            username="late-arrival-operator",
+            nip="900022",
+            nama_lengkap="TU",
+            email="late-arrival-operator@example.test",
+            password="test-password",
+            is_staff=True,
+        )
+        teacher = UserGuru.objects.create_user(
+            username="late-arrival-teacher",
+            nip="900023",
+            nama_lengkap="Guru Terlambat",
+            email="late-arrival-teacher@example.test",
+            password="test-password",
+        )
+        settings_obj = PengaturanWaktuPresensi.get_settings()
+        settings_obj.jam_mulai_masuk = time(5, 0)
+        settings_obj.batas_terlambat = time(7, 30)
+        settings_obj.jam_mulai_pulang = time(12, 0)
+        settings_obj.jam_pulang_normal = time(13, 40)
+        settings_obj.save()
+        arrival_date = timezone.localdate() + timedelta(days=1)
+        requested_arrival = time(9, 0)
+        leave = PengajuanIzin.objects.create(
+            guru=teacher,
+            jenis_izin="datang_terlambat",
+            tgl_mulai=arrival_date,
+            tgl_selesai=arrival_date,
+            jam_datang_diminta=requested_arrival,
+            alasan="Keperluan keluarga.",
+        )
+        self.client.force_login(operator)
+
+        response = self.client.post(reverse("approve-leave", args=(leave.pk,)), {"decision": "disetujui"})
+
+        self.assertEqual(response.status_code, 200)
+        attendance = AbsensiLog.objects.get(guru=teacher, tanggal=arrival_date)
+        self.assertEqual(
+            attendance.waktu_masuk,
+            timezone.make_aware(
+                datetime.combine(arrival_date, requested_arrival),
+                timezone.get_current_timezone(),
+            ),
+        )
+        self.assertEqual(attendance.status, "terlambat")
+        self.assertEqual(attendance.metode_scan, "izin_telat")
+
+        checkout = timezone.make_aware(
+            datetime.combine(arrival_date, time(13, 40)),
+            timezone.get_current_timezone(),
+        )
+        attendance, event = record_attendance_event(teacher, method="qr_tv", now=checkout)
+        self.assertEqual(event, "pulang")
+        self.assertEqual(attendance.waktu_pulang, checkout)
+        self.assertEqual(attendance.status_pulang, "tepat_waktu")
 
     def test_operator_cannot_approve_regular_leave(self):
         operator = UserGuru.objects.create_user(

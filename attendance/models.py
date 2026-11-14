@@ -12,6 +12,7 @@ class AbsensiLog(models.Model):
         ("qr_cetak", "HP Guru Scan Poster QR Cetak"),
         ("qr_guru", "Tablet Kiosk Scan QR HP Guru"),
         ("manual_kiosk", "Manual Input Kiosk Darurat"),
+        ("izin_telat", "Otomatis dari Izin Datang Terlambat"),
     )
     STATUS_CHOICES = (
         ("hadir", "Hadir Tepat Waktu"),
@@ -49,6 +50,7 @@ class PengajuanIzin(models.Model):
         ("izin", "Izin Personal"),
         ("dinas_luar", "Dinas Luar"),
         ("cuti", "Cuti"),
+        ("datang_terlambat", "Izin Datang Terlambat"),
         ("pulang_awal", "Izin Pulang Lebih Awal"),
     )
     APPROVAL_CHOICES = (
@@ -61,9 +63,11 @@ class PengajuanIzin(models.Model):
     jenis_izin = models.CharField(max_length=20, choices=JENIS_CHOICES)
     tgl_mulai = models.DateField()
     tgl_selesai = models.DateField()
+    jam_datang_diminta = models.TimeField(null=True, blank=True)
     jam_mulai_pulang_diminta = models.TimeField(null=True, blank=True)
     jam_pulang_diminta = models.TimeField(null=True, blank=True)
     alasan = models.TextField()
+    tugas_kelas = models.TextField(blank=True)
     file_bukti = models.FileField(upload_to="dokumen_izin/", storage=encrypted_private_storage, blank=True)
     status_approval = models.CharField(max_length=20, choices=APPROVAL_CHOICES, default="pending")
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="approvals")
@@ -85,6 +89,14 @@ class PengajuanIzin(models.Model):
                 errors["tgl_selesai"] = "Izin pulang lebih awal hanya berlaku untuk satu tanggal."
             if not self.jam_pulang_diminta:
                 errors["jam_pulang_diminta"] = "Jam pulang yang diminta wajib diisi."
+            if errors:
+                raise ValidationError(errors)
+        if self.jenis_izin == "datang_terlambat":
+            errors = {}
+            if self.tgl_mulai and self.tgl_selesai and self.tgl_mulai != self.tgl_selesai:
+                errors["tgl_selesai"] = "Izin datang terlambat hanya berlaku untuk satu tanggal."
+            if not self.jam_datang_diminta:
+                errors["jam_datang_diminta"] = "Jam datang yang diminta wajib diisi."
             if errors:
                 raise ValidationError(errors)
 
