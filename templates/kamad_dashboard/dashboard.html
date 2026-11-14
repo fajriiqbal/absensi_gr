@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Dashboard Kamad | Presensi Guru{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-7xl px-5 py-8 sm:py-10" x-data="kamadDashboard()" x-init="start()">
+<div class="mx-auto max-w-7xl px-4 py-6 sm:px-5 sm:py-10" x-data="kamadDashboard()" x-init="start()">
   <div class="flex flex-wrap items-end justify-between gap-3 border-b border-[#dbe1dc] pb-5">
     <div>
       <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Monitoring Kepala Madrasah</p>
@@ -10,8 +10,24 @@
     <p class="text-sm text-[#63736b]">{{ today|date:"l, d F Y" }} <span class="ml-2 inline-block h-2 w-2 rounded-full bg-[#4e9c6c]"></span> Live</p>
   </div>
   <section class="mt-7">
-    <div class="flex items-baseline justify-between"><h2 class="text-lg font-semibold">Kehadiran hari ini</h2><span class="text-sm text-[#63736b]" x-text="items.length + ' guru tercatat'"></span></div>
-    <div class="mt-3 overflow-x-auto border-y border-[#dbe1dc] bg-white">
+    <div class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="text-lg font-semibold">Kehadiran hari ini</h2><span class="text-sm text-[#63736b]" x-text="items.length + ' guru tercatat'"></span></div>
+    <div class="mt-3 space-y-3 md:hidden">
+      <template x-for="item in items" :key="item.nip">
+        <article class="rounded-2xl border border-[#dbe1dc] bg-white p-4 shadow-sm">
+          <div class="flex min-w-0 items-start justify-between gap-3">
+            <div class="min-w-0"><h3 class="break-words font-semibold text-[#173f35]" x-text="item.nama"></h3><p class="mt-1 font-mono text-xs text-[#63736b]" x-text="item.nip"></p></div>
+            <span class="shrink-0 rounded-full bg-[#e4eee8] px-2.5 py-1 text-xs font-semibold text-[#17634c]" x-text="item.status"></span>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-3 border-t border-[#edf0ed] pt-3">
+            <div><p class="text-xs text-[#7a8780]">Masuk</p><p class="mt-1 font-semibold tabular-nums text-[#34483f]" x-text="item.waktu_masuk"></p></div>
+            <div><p class="text-xs text-[#7a8780]">Pulang</p><p class="mt-1 font-semibold tabular-nums text-[#34483f]" x-text="item.waktu_pulang"></p></div>
+          </div>
+          <p class="mt-3 break-words text-xs text-[#63736b]"><span x-text="item.metode"></span><span class="mx-1">·</span><span x-text="item.status_pulang"></span></p>
+        </article>
+      </template>
+      <div x-show="items.length === 0" class="rounded-2xl border border-dashed border-[#cfd7d2] bg-white px-4 py-8 text-center text-sm text-[#63736b]">Belum ada presensi hari ini.</div>
+    </div>
+    <div class="mt-3 hidden overflow-x-auto border-y border-[#dbe1dc] bg-white md:block">
       <table class="w-full min-w-[740px] text-left text-sm">
         <thead class="border-b border-[#dbe1dc] bg-[#f8faf8] text-xs uppercase tracking-wide text-[#63736b]"><tr><th class="px-4 py-3">Nama Guru</th><th class="px-4 py-3">NIP</th><th class="px-4 py-3">Masuk</th><th class="px-4 py-3">Pulang</th><th class="px-4 py-3">Metode</th><th class="px-4 py-3">Status Masuk / Pulang</th></tr></thead>
         <tbody class="divide-y divide-[#e6ebe7]">
@@ -23,11 +39,20 @@
     <p class="mt-2 text-right text-xs text-[#7a8780]" x-text="updated"></p>
   </section>
   <section class="mt-8" aria-labelledby="missing-attendance-heading">
-    <div class="flex items-baseline justify-between gap-3">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
       <h2 id="missing-attendance-heading" class="text-lg font-semibold">Guru belum absen hari ini</h2>
       <span class="text-sm text-[#63736b]" x-text="missingItems.length + ' guru'"></span>
     </div>
-    <div class="mt-3 overflow-x-auto border-y border-[#dbe1dc] bg-white">
+    <div class="mt-3 space-y-2 md:hidden">
+      <template x-for="teacher in missingItems" :key="teacher.nip">
+        <article class="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[#dbe1dc] bg-white px-4 py-3">
+          <span class="min-w-0 break-words font-medium text-[#173f35]" x-text="teacher.nama"></span>
+          <span class="shrink-0 font-mono text-xs text-[#63736b]" x-text="teacher.nip"></span>
+        </article>
+      </template>
+      <div x-show="missingItems.length === 0" class="rounded-2xl border border-dashed border-[#cfd7d2] bg-white px-4 py-8 text-center text-sm text-[#63736b]">Semua guru aktif sudah tercatat absen hari ini.</div>
+    </div>
+    <div class="mt-3 hidden overflow-x-auto border-y border-[#dbe1dc] bg-white md:block">
       <table class="w-full min-w-[480px] text-left text-sm">
         <thead class="border-b border-[#dbe1dc] bg-[#f8faf8] text-xs uppercase tracking-wide text-[#63736b]">
           <tr><th class="px-4 py-3">Nama Guru</th><th class="px-4 py-3">NIP</th></tr>
@@ -42,11 +67,11 @@
     </div>
   </section>
   <section id="approval" class="mt-10">
-    <div class="flex items-baseline justify-between"><h2 class="text-lg font-semibold">Approval izin</h2><span class="text-sm text-[#63736b]">{{ pending_leaves|length }} menunggu</span></div>
+    <div class="flex flex-wrap items-baseline justify-between gap-2"><h2 class="text-lg font-semibold">Approval izin</h2><span class="text-sm text-[#63736b]">{{ pending_leaves|length }} menunggu</span></div>
     <div class="mt-3 divide-y divide-[#dbe1dc] border-y border-[#dbe1dc] bg-white">
       {% for leave in pending_leaves %}
-        <article class="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center" id="leave-{{ leave.pk }}">
-          <div>
+        <article class="grid gap-4 p-4 sm:p-5 md:grid-cols-[1fr_auto] md:items-center" id="leave-{{ leave.pk }}">
+          <div class="min-w-0">
             <p class="font-semibold">{{ leave.guru.nama_lengkap }} <span class="font-normal text-[#63736b]">· {{ leave.get_jenis_izin_display }}</span></p>
             <p class="mt-1 text-sm text-[#63736b]">{{ leave.tgl_mulai|date:"d M Y" }}{% if leave.tgl_selesai != leave.tgl_mulai %} - {{ leave.tgl_selesai|date:"d M Y" }}{% endif %} · {{ leave.alasan|truncatechars:140 }}</p>
             {% if leave.jenis_izin == "pulang_awal" %}<p class="mt-2 text-sm font-medium text-[#52625b]">Jam pulang diminta {{ leave.jam_pulang_diminta|time:"H:i" }}</p>{% elif leave.jenis_izin == "datang_terlambat" %}<p class="mt-2 text-sm font-medium text-[#52625b]">Jam datang diminta {{ leave.jam_datang_diminta|time:"H:i" }}</p>{% endif %}
@@ -54,7 +79,7 @@
             {% if leave.file_bukti %}<a class="mt-2 inline-block text-sm text-[#17634c] underline" href="{% url 'private-leave-document' leave.pk %}" target="_blank" rel="noopener">Lihat bukti</a>{% endif %}
             <p class="mt-2 text-sm text-[#a34431]" data-result></p>
           </div>
-          <form class="flex flex-wrap gap-2" onsubmit="return submitApproval(this, event)" action="{% url 'approve-leave' leave.pk %}" method="post">{% csrf_token %}<button class="button button-primary" name="decision" value="disetujui">Setujui</button><button class="button button-muted" name="decision" value="ditolak">Tolak</button></form>
+          <form class="flex flex-col gap-2 sm:flex-row md:justify-end" onsubmit="return submitApproval(this, event)" action="{% url 'approve-leave' leave.pk %}" method="post">{% csrf_token %}<button class="button button-primary min-h-11 w-full sm:flex-1 md:w-auto md:flex-none" name="decision" value="disetujui">Setujui</button><button class="button button-muted min-h-11 w-full sm:flex-1 md:w-auto md:flex-none" name="decision" value="ditolak">Tolak</button></form>
         </article>
       {% empty %}
         <p class="px-5 py-8 text-sm text-[#63736b]">Tidak ada pengajuan yang menunggu persetujuan.</p>

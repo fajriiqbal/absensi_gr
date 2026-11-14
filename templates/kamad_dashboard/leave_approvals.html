@@ -9,14 +9,14 @@
   </header>
 
   <section id="approval" class="mt-6">
-    <div class="flex items-baseline justify-between">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
       <h2 class="text-lg font-semibold">Pengajuan menunggu</h2>
       <span class="text-sm text-[#63736b]">{{ pending_leaves|length }} menunggu</span>
     </div>
     <div class="mt-3 divide-y divide-[#dbe1dc] rounded-2xl border border-[#dbe1dc] bg-white">
       {% for leave in pending_leaves %}
-        <article class="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center" id="leave-{{ leave.pk }}">
-          <div>
+        <article class="grid gap-4 p-4 sm:p-5 md:grid-cols-[1fr_auto] md:items-center" id="leave-{{ leave.pk }}">
+          <div class="min-w-0">
             <p class="font-semibold">{{ leave.guru.nama_lengkap }} <span class="font-normal text-[#63736b]">· {{ leave.get_jenis_izin_display }}</span></p>
             <p class="mt-1 text-sm text-[#63736b]">{{ leave.tgl_mulai|date:"d M Y" }}{% if leave.tgl_selesai != leave.tgl_mulai %} - {{ leave.tgl_selesai|date:"d M Y" }}{% endif %}</p>
             {% if leave.jenis_izin == "pulang_awal" %}
@@ -30,10 +30,10 @@
             {% endif %}
             <p class="mt-2 text-sm text-[#a34431]" data-result aria-live="polite"></p>
           </div>
-          <form class="flex flex-wrap gap-2" onsubmit="return submitApproval(this, event)" action="{% url 'approve-leave' leave.pk %}" method="post">
+          <form class="flex flex-col gap-2 sm:flex-row md:justify-end" onsubmit="return submitApproval(this, event)" action="{% url 'approve-leave' leave.pk %}" method="post">
             {% csrf_token %}
-            <button class="button button-primary" name="decision" value="disetujui">Setujui</button>
-            <button class="button button-muted" name="decision" value="ditolak">Tolak</button>
+            <button class="button button-primary min-h-11 w-full sm:flex-1 md:w-auto md:flex-none" name="decision" value="disetujui">Setujui</button>
+            <button class="button button-muted min-h-11 w-full sm:flex-1 md:w-auto md:flex-none" name="decision" value="ditolak">Tolak</button>
           </form>
         </article>
       {% empty %}

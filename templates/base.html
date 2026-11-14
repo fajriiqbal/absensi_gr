@@ -50,6 +50,13 @@
       .mobile-content { padding-bottom: calc(6.25rem + env(safe-area-inset-bottom)); }
       .mobile-bottom-nav { position: fixed; z-index: 50; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; min-height: 76px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #dbe1dc; background: rgba(255, 255, 255, .97); box-shadow: 0 -8px 24px rgba(23, 63, 53, .08); }
       .mobile-bottom-nav.kamad-mobile-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      .kamad-mobile-nav .mobile-nav-item, .kamad-mobile-nav .mobile-scan-item { font-size: 9px; }
+      .kamad-mobile-nav .mobile-nav-item { gap: 3px; }
+      .kamad-mobile-nav .mobile-nav-item svg { width: 18px; height: 18px; }
+      .kamad-mobile-nav .mobile-scan-button { width: 52px; height: 52px; margin-top: -22px; }
+      .kamad-mobile-header .kamad-brand { gap: .375rem; font-size: .875rem; }
+      .kamad-mobile-header .kamad-brand img { width: 2.5rem; height: 2.5rem; }
+      .kamad-mobile-header .kamad-user-name { max-width: 4.5rem; }
       .mobile-nav-item { display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #66756d; font-size: 10px; line-height: 1.1; text-align: center; }
       .mobile-nav-item svg { width: 19px; height: 19px; stroke-width: 1.8; }
       .mobile-nav-item[aria-current="page"] { color: #17634c; font-weight: 700; }
@@ -102,9 +109,9 @@
     </div>
   </div>
   {% if request.user.is_authenticated and not hide_navigation %}
-  <header class="sticky top-0 z-40 border-b border-[#dbe1dc] bg-white">
+  <header class="sticky top-0 z-40 border-b border-[#dbe1dc] bg-white{% if request.user.role == 'kamad' %} kamad-mobile-header{% endif %}">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-5">
-      <a href="{% url 'role-home' %}" class="flex shrink-0 items-center gap-2 font-bold tracking-wide text-[#174d3d]"><img src="{% static 'app/images/logo-madrasah.png' %}?v=4" alt="Logo MTs Sunan Kalijaga Tulung" class="h-12 w-12 object-contain"><span>PRESENSI <span class="font-normal text-[#63736b]">/ {% if request.user.role == "admin" or request.user.is_superuser %}ADMIN{% elif request.user.role == "kamad" %}KAMAD{% elif request.user.role == "guru" %}GURU{% elif request.user.is_staff %}OPERATOR{% else %}GURU{% endif %}</span></span></a>
+      <a href="{% url 'role-home' %}" class="flex shrink-0 items-center gap-2 font-bold tracking-wide text-[#174d3d]{% if request.user.role == 'kamad' %} kamad-brand{% endif %}"><img src="{% static 'app/images/logo-madrasah.png' %}?v=4" alt="Logo MTs Sunan Kalijaga Tulung" class="h-12 w-12 object-contain"><span>PRESENSI <span class="font-normal text-[#63736b]">/ {% if request.user.role == "admin" or request.user.is_superuser %}ADMIN{% elif request.user.role == "kamad" %}KAMAD{% elif request.user.role == "guru" %}GURU{% elif request.user.is_staff %}OPERATOR{% else %}GURU{% endif %}</span></span></a>
       <div class="hidden flex-wrap items-center justify-end gap-4 text-sm md:flex">
         <span class="text-[#52625b]">{{ request.user.nama_lengkap }}</span>
         {% if request.user.role == "admin" or request.user.is_superuser %}<a href="{% url 'leave-approvals' %}" class="text-[#17634c] hover:underline">Persetujuan Izin</a>{% elif request.user.role == "kamad" %}<a href="{% url 'kamad-dashboard' %}" class="text-[#17634c] hover:underline">Dashboard Kamad</a><a href="{% url 'leave-approvals' %}" class="text-[#17634c] hover:underline">Persetujuan Izin</a><a href="{% url 'leave-report' %}" class="text-[#17634c] hover:underline">Rekap Izin</a><a href="{% url 'guru-scan' %}" class="text-[#17634c] hover:underline">Scan</a><a href="{% url 'guru-my-qr' %}" class="text-[#17634c] hover:underline">QR Kiosk</a><a href="{% url 'leave-requests' %}" class="text-[#17634c] hover:underline">Perizinan</a>{% elif request.user.is_staff and request.user.role != "guru" %}<a href="{% url 'leave-approvals' %}" class="text-[#17634c] hover:underline">Persetujuan Pulang Awal</a>{% else %}<a href="{% url 'guru-scan' %}" class="text-[#17634c] hover:underline">Scan</a><a href="{% url 'guru-my-qr' %}" class="text-[#17634c] hover:underline">QR Kiosk</a><a href="{% url 'leave-requests' %}" class="text-[#17634c] hover:underline">Perizinan</a>{% if request.user.is_staff %}<a href="{% url 'leave-approvals' %}" class="text-[#17634c] hover:underline">Persetujuan Pulang Awal</a>{% endif %}{% endif %}
@@ -113,7 +120,7 @@
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="text-[#52625b] hover:text-[#17231e]">Keluar</button></form>
       </div>
       <div class="flex items-center gap-3 md:hidden">
-        <span class="max-w-[110px] truncate text-xs text-[#52625b]">{{ request.user.nama_lengkap }}</span>
+        <span class="max-w-[110px] truncate text-xs text-[#52625b]{% if request.user.role == 'kamad' %} kamad-user-name{% endif %}">{{ request.user.nama_lengkap }}</span>
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="text-xs font-semibold text-[#17634c]">Keluar</button></form>
       </div>
     </div>
