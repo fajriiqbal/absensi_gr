@@ -573,6 +573,9 @@ class LeaveRequestWorkflowTests(TestCase):
     def test_leave_form_only_offers_requested_types_and_has_no_schedule_fields(self):
         response = self.client.get(reverse("leave-requests"))
         self.assertEqual(response.status_code, 200)
+        page = response.content.decode()
+        self.assertLess(page.index('id="riwayat-pengajuan"'), page.index('id="form-pengajuan"'))
+        self.assertContains(response, 'href="#form-pengajuan"')
         self.assertContains(response, "Izin Datang Terlambat")
         self.assertContains(response, "Izin Pulang Lebih Awal")
         self.assertNotContains(response, "Izin Personal")

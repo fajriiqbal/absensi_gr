@@ -20,9 +20,128 @@
         </p>
     </header>
 
-    <div class="mt-5 grid items-start gap-6 lg:mt-7 lg:grid-cols-[.9fr_1.1fr] lg:gap-8">
+    <div class="mt-5 flex flex-col gap-6 lg:mt-7 lg:gap-8">
 
-        <section class="min-w-0">
+        <!-- Riwayat pengajuan izin -->
+        <section id="riwayat-pengajuan" class="min-w-0">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-[#173f35]">
+                    Riwayat pengajuan
+                    </h2>
+                    <p class="mt-1 text-sm text-[#63736b]">Lihat status dan keputusan pengajuan Anda.</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#52625b] ring-1 ring-[#dbe1dc]">
+                        {{ requests|length }} pengajuan
+                    </span>
+                    <a class="button button-primary min-h-11" href="#form-pengajuan">Buat pengajuan</a>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+
+                {% for leave_request in requests %}
+                    <article class="min-w-0 rounded-2xl border border-[#dbe1dc] bg-white p-4 shadow-sm sm:p-5">
+
+                        <!-- Jenis, periode, dan status -->
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+
+                            <div class="min-w-0">
+                                <h3 class="break-words font-bold text-[#173f35]">
+                                    {{ leave_request.get_jenis_izin_display }}
+                                </h3>
+
+                                <p class="mt-1 text-sm leading-5 text-[#63736b]">
+                                    {{ leave_request.tgl_mulai|date:"d M Y" }}
+                                    –
+                                    {{ leave_request.tgl_selesai|date:"d M Y" }}
+                                </p>
+                                {% if leave_request.jenis_izin == "pulang_awal" %}
+                                    <p class="mt-2 text-sm font-medium text-[#52625b]">Jam pulang diminta {{ leave_request.jam_pulang_diminta|time:"H:i" }}</p>
+                                {% elif leave_request.jenis_izin == "datang_terlambat" %}
+                                    <p class="mt-2 text-sm font-medium text-[#52625b]">Jam datang diminta {{ leave_request.jam_datang_diminta|time:"H:i" }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Status persetujuan -->
+                            {% if leave_request.status_approval == "disetujui" %}
+                                <span class="w-fit rounded-full bg-[#e4eee8] px-3 py-1.5 text-xs font-semibold text-[#17634c]">
+                                    Disetujui
+                                </span>
+
+                            {% elif leave_request.status_approval == "ditolak" %}
+                                <span class="w-fit rounded-full bg-[#fff0ec] px-3 py-1.5 text-xs font-semibold text-[#a34431]">
+                                    Ditolak
+                                </span>
+
+                            {% else %}
+                                <span class="w-fit rounded-full bg-[#f1f2e9] px-3 py-1.5 text-xs font-semibold text-[#6c6944]">
+                                    Menunggu approval
+                                </span>
+                            {% endif %}
+
+                        </div>
+
+                        <!-- Alasan pengajuan -->
+                        <p class="mt-4 whitespace-pre-line break-words border-t border-[#edf0ed] pt-3 text-sm leading-6 text-[#52625b]">
+                            {{ leave_request.alasan }}
+                        </p>
+
+                        {% if leave_request.jenis_izin == "sakit" and leave_request.tugas_kelas %}
+                            <p class="mt-3 whitespace-pre-line break-words text-sm leading-5 text-[#52625b]"><span class="font-semibold">Tugas kelas:</span> {{ leave_request.tugas_kelas }}</p>
+                        {% endif %}
+
+                        <!-- Tindakan berdasarkan status -->
+                        {% if leave_request.status_approval == "disetujui" and leave_request.jenis_izin == "pulang_awal" %}
+
+                            <p class="mt-4 rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-3 text-sm text-[#17634c]">Permohonan pulang lebih awal disetujui.</p>
+
+                        {% elif leave_request.status_approval == "disetujui" and leave_request.jenis_izin == "datang_terlambat" %}
+
+                            <p class="mt-4 rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-3 text-sm text-[#17634c]">Permohonan datang terlambat disetujui. Jam datang telah tercatat; scan barcode saat pulang.</p>
+
+                        {% elif leave_request.status_approval == "disetujui" %}
+
+                            <a
+                                class="button button-primary mt-4 min-h-11 w-full rounded-xl sm:w-auto"
+                                href="{% url 'leave-letter' leave_request.pk %}"
+                                data-download-progress
+                            >
+                                Unduh surat izin PDF
+                            </a>
+
+                        {% elif leave_request.status_approval == "ditolak" and leave_request.catatan_kamad %}
+
+                            <p class="mt-4 break-words rounded-xl border border-[#f0d7d0] bg-[#fff8f6] p-3 text-sm leading-5 text-[#7b4034]">
+                                <span class="font-semibold">Catatan Kamad:</span>
+                                {{ leave_request.catatan_kamad }}
+                            </p>
+
+                        {% endif %}
+
+                        <!-- Waktu pemrosesan -->
+                        {% if leave_request.approved_at %}
+                            <p class="mt-2 text-xs text-[#7a8780]">
+                                Diproses
+                                {{ leave_request.approved_at|date:"d M Y, H:i" }}
+                            </p>
+                        {% endif %}
+
+                    </article>
+
+                {% empty %}
+                    <div class="rounded-2xl border border-dashed border-[#cfd7d2] bg-white px-5 py-10 text-center">
+                        <p class="font-semibold text-[#34483f]">Belum ada pengajuan izin.</p>
+                        <p class="mt-1 text-sm leading-5 text-[#63736b]">Pengajuan yang Anda kirim akan tampil di sini.</p>
+                    </div>
+                {% endfor %}
+
+            </div>
+        </section>
+
+        <section id="form-pengajuan" class="min-w-0 scroll-mt-6">
             <div class="mb-3">
                 <h2 class="text-lg font-bold text-[#173f35]">
                     Buat pengajuan
@@ -154,122 +273,6 @@
                     Kirim pengajuan
                 </button>
             </form>
-        </section>
-
-        <!-- Riwayat pengajuan izin -->
-        <section class="min-w-0">
-            <div class="mb-3 flex items-center justify-between gap-3">
-                <div>
-                    <h2 class="text-lg font-bold text-[#173f35]">
-                    Riwayat pengajuan
-                    </h2>
-                    <p class="mt-1 text-sm text-[#63736b]">Lihat status dan keputusan pengajuan Anda.</p>
-                </div>
-
-                <span class="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-[#52625b] ring-1 ring-[#dbe1dc]">
-                    {{ requests|length }} pengajuan
-                </span>
-            </div>
-
-            <div class="space-y-3">
-
-                {% for leave_request in requests %}
-                    <article class="min-w-0 rounded-2xl border border-[#dbe1dc] bg-white p-4 shadow-sm sm:p-5">
-
-                        <!-- Jenis, periode, dan status -->
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-
-                            <div class="min-w-0">
-                                <h3 class="break-words font-bold text-[#173f35]">
-                                    {{ leave_request.get_jenis_izin_display }}
-                                </h3>
-
-                                <p class="mt-1 text-sm leading-5 text-[#63736b]">
-                                    {{ leave_request.tgl_mulai|date:"d M Y" }}
-                                    –
-                                    {{ leave_request.tgl_selesai|date:"d M Y" }}
-                                </p>
-                                {% if leave_request.jenis_izin == "pulang_awal" %}
-                                    <p class="mt-2 text-sm font-medium text-[#52625b]">Jam pulang diminta {{ leave_request.jam_pulang_diminta|time:"H:i" }}</p>
-                                {% elif leave_request.jenis_izin == "datang_terlambat" %}
-                                    <p class="mt-2 text-sm font-medium text-[#52625b]">Jam datang diminta {{ leave_request.jam_datang_diminta|time:"H:i" }}</p>
-                                {% endif %}
-                            </div>
-
-                            <!-- Status persetujuan -->
-                            {% if leave_request.status_approval == "disetujui" %}
-                                <span class="w-fit rounded-full bg-[#e4eee8] px-3 py-1.5 text-xs font-semibold text-[#17634c]">
-                                    Disetujui
-                                </span>
-
-                            {% elif leave_request.status_approval == "ditolak" %}
-                                <span class="w-fit rounded-full bg-[#fff0ec] px-3 py-1.5 text-xs font-semibold text-[#a34431]">
-                                    Ditolak
-                                </span>
-
-                            {% else %}
-                                <span class="w-fit rounded-full bg-[#f1f2e9] px-3 py-1.5 text-xs font-semibold text-[#6c6944]">
-                                    Menunggu approval
-                                </span>
-                            {% endif %}
-
-                        </div>
-
-                        <!-- Alasan pengajuan -->
-                        <p class="mt-4 whitespace-pre-line break-words border-t border-[#edf0ed] pt-3 text-sm leading-6 text-[#52625b]">
-                            {{ leave_request.alasan }}
-                        </p>
-
-                        {% if leave_request.jenis_izin == "sakit" and leave_request.tugas_kelas %}
-                            <p class="mt-3 whitespace-pre-line break-words text-sm leading-5 text-[#52625b]"><span class="font-semibold">Tugas kelas:</span> {{ leave_request.tugas_kelas }}</p>
-                        {% endif %}
-
-                        <!-- Tindakan berdasarkan status -->
-                        {% if leave_request.status_approval == "disetujui" and leave_request.jenis_izin == "pulang_awal" %}
-
-                            <p class="mt-4 rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-3 text-sm text-[#17634c]">Permohonan pulang lebih awal disetujui.</p>
-
-                        {% elif leave_request.status_approval == "disetujui" and leave_request.jenis_izin == "datang_terlambat" %}
-
-                            <p class="mt-4 rounded-xl border border-[#dbe1dc] bg-[#f8faf8] p-3 text-sm text-[#17634c]">Permohonan datang terlambat disetujui. Jam datang telah tercatat; scan barcode saat pulang.</p>
-
-                        {% elif leave_request.status_approval == "disetujui" %}
-
-                            <a
-                                class="button button-primary mt-4 min-h-11 w-full rounded-xl sm:w-auto"
-                                href="{% url 'leave-letter' leave_request.pk %}"
-                                data-download-progress
-                            >
-                                Unduh surat izin PDF
-                            </a>
-
-                        {% elif leave_request.status_approval == "ditolak" and leave_request.catatan_kamad %}
-
-                            <p class="mt-4 break-words rounded-xl border border-[#f0d7d0] bg-[#fff8f6] p-3 text-sm leading-5 text-[#7b4034]">
-                                <span class="font-semibold">Catatan Kamad:</span>
-                                {{ leave_request.catatan_kamad }}
-                            </p>
-
-                        {% endif %}
-
-                        <!-- Waktu pemrosesan -->
-                        {% if leave_request.approved_at %}
-                            <p class="mt-2 text-xs text-[#7a8780]">
-                                Diproses
-                                {{ leave_request.approved_at|date:"d M Y, H:i" }}
-                            </p>
-                        {% endif %}
-
-                    </article>
-
-                {% empty %}
-                    <div class="rounded-2xl border border-dashed border-[#cfd7d2] bg-white px-5 py-10 text-center">
-                        <p class="font-semibold text-[#34483f]">Belum ada pengajuan izin.</p>
-                        <p class="mt-1 text-sm leading-5 text-[#63736b]">Pengajuan yang Anda kirim akan tampil di sini.</p>
-                    </div>
-                {% endfor %}
-
-            </div>
         </section>
 
     </div>
