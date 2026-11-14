@@ -628,6 +628,23 @@ class AttendanceReportTests(TestCase):
             if teacher == first_teacher:
                 log.status_pulang = "pulang_cepat"
                 log.save(update_fields=("status_pulang",))
+        PengajuanIzin.objects.create(
+            guru=first_teacher,
+            jenis_izin="sakit",
+            tgl_mulai=date(2026, 1, 16),
+            tgl_selesai=date(2026, 1, 17),
+            alasan="Sakit",
+            status_approval="disetujui",
+            approved_by=admin_user,
+        )
+        PengajuanIzin.objects.create(
+            guru=second_teacher,
+            jenis_izin="sakit",
+            tgl_mulai=date(2026, 1, 16),
+            tgl_selesai=date(2026, 1, 16),
+            alasan="Belum disetujui",
+            status_approval="ditolak",
+        )
         self.client.force_login(admin_user)
         params = {"bulan": today.month, "tahun": today.year, "guru": first_teacher.pk}
         preview = self.client.get(reverse("attendance-report"), params)
@@ -637,8 +654,8 @@ class AttendanceReportTests(TestCase):
         summary_row = preview.context["summary"][0]
         self.assertEqual(summary_row["hadir"], 0)
         self.assertEqual(summary_row["terlambat"], 1)
-        self.assertEqual(summary_row["pulang_cepat"], 1)
-        self.assertEqual(summary_row["total"], 2)
+        self.assertEqual(summary_row["izin_sakit"], 1)
+        self.assertAlmostEqual(summary_row["persentase"], 100 / 27)
         params["aksi"] = "xlsx"
         response = self.client.get(reverse("attendance-report"), params)
         self.assertEqual(response.status_code, 200)
@@ -654,6 +671,10 @@ class AttendanceReportTests(TestCase):
         self.assertEqual(report["G22"].value, "15")
         self.assertEqual(report["I22"].value, time(13, 35))
         self.assertEqual(report["J22"].value, "25")
+        self.assertEqual(report["F23"].value, report["E23"].value)
+        self.assertEqual(report["I23"].value, report["H23"].value)
+        self.assertEqual(report["F24"].value, report["E24"].value)
+        self.assertEqual(report["I24"].value, report["H24"].value)
         self.assertEqual(report["A9"].value, "Jum'at,")
         self.assertEqual(report["A11"].value, "Minggu,")
         self.assertNotEqual(report["A9"].fill.fgColor.rgb, "FFFF00FF")
@@ -667,9 +688,11 @@ class AttendanceReportTests(TestCase):
         summary = workbook["Rekap Per Guru"]
         self.assertEqual(summary.max_row, 2)
         self.assertEqual(summary["A2"].value, first_teacher.nip)
+        self.assertEqual(summary["C2"].value, 0)
         self.assertEqual(summary["D2"].value, 1)
         self.assertEqual(summary["E2"].value, 1)
-        self.assertEqual(summary["F2"].value, 2)
+        self.assertAlmostEqual(summary["F2"].value, 1 / 27)
+        self.assertEqual(summary["F2"].number_format, "0.0%")
         self.assertEqual(workbook["Detail Absensi"].max_row, 2)
         self.assertEqual(workbook["Detail Absensi"]["H1"].value, "Status Pulang")
 
@@ -684,6 +707,13 @@ class AttendanceReportTests(TestCase):
             ),
             (": Guru Rekap Satu", ": Guru Rekap Dua"),
         )
+        all_teacher_summary = all_teachers_workbook["Rekap Per Guru"]
+        sick_counts_by_name = {
+            all_teacher_summary.cell(row, 2).value: all_teacher_summary.cell(row, 5).value
+            for row in range(2, all_teacher_summary.max_row + 1)
+        }
+        self.assertEqual(sick_counts_by_name[first_teacher.nama_lengkap], 1)
+        self.assertEqual(sick_counts_by_name[second_teacher.nama_lengkap], 0)
 
         december_response = self.client.get(reverse("attendance-report"), {
             "bulan": 12,

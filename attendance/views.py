@@ -1,5 +1,7 @@
-import uuid
+import calendar
 import mimetypes
+import uuid
+from datetime import date
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -51,7 +53,18 @@ def attendance_report(request):
         logs_query = logs_query.filter(guru=selected_teacher)
         report_teachers = [selected_teacher]
     logs = list(logs_query)
-    summary = build_attendance_summary(logs, report_teachers)
+    period_start = date(year, month, 1)
+    period_end = date(year, month, calendar.monthrange(year, month)[1])
+    sick_leaves = list(
+        PengajuanIzin.objects.filter(
+            guru__in=report_teachers,
+            jenis_izin="sakit",
+            status_approval="disetujui",
+            tgl_mulai__lte=period_end,
+            tgl_selesai__gte=period_start,
+        ).select_related("guru")
+    )
+    summary = build_attendance_summary(logs, report_teachers, year, month, sick_leaves)
 
     if request.GET.get("aksi") == "xlsx" and not error:
         workbook = build_attendance_workbook(
@@ -60,6 +73,7 @@ def attendance_report(request):
             month,
             report_teachers,
             teacher_sheet_names=selected_teacher is None,
+            sick_leaves=sick_leaves,
         )
         response = HttpResponse(workbook, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response["Content-Disposition"] = f'attachment; filename="rekap-absensi-{year}-{month:02d}.xlsx"'

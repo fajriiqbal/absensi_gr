@@ -1,7 +1,7 @@
 import calendar
 from collections import defaultdict
 from copy import copy
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 
@@ -50,27 +50,34 @@ def resolve_report_period(params):
         return today.year, today.month, str(exc)
 
 
-def build_attendance_summary(logs, teachers):
-    totals = defaultdict(lambda: {"hadir": 0, "terlambat": 0, "pulang_cepat": 0})
+def build_attendance_summary(logs, teachers, year, month, sick_leaves=()):
+    working_days = sum(
+        date(year, month, day).weekday() != 6
+        for day in range(1, calendar.monthrange(year, month)[1] + 1)
+    )
+    totals = defaultdict(lambda: {"hadir": 0, "terlambat": 0, "izin_sakit": 0})
     for teacher in teachers:
         totals[(teacher.pk, teacher.nip, teacher.nama_lengkap)]
     for log in logs:
         item = totals[(log.guru_id, log.guru.nip, log.guru.nama_lengkap)]
-        if log.status == "pulang_cepat":
-            item["pulang_cepat"] += 1
-        elif log.status == "terlambat":
+        if log.status == "terlambat":
             item["terlambat"] += 1
-        else:
+        elif log.status == "hadir":
             item["hadir"] += 1
-        if log.status_pulang == "pulang_cepat" and log.status != "pulang_cepat":
-            item["pulang_cepat"] += 1
+    for leave in sick_leaves:
+        if leave.jenis_izin == "sakit" and leave.status_approval == "disetujui":
+            totals[(leave.guru_id, leave.guru.nip, leave.guru.nama_lengkap)]["izin_sakit"] += 1
     return [
         {
             "id": key[0],
             "nip": key[1],
             "nama": key[2],
             **counts,
-            "total": counts["hadir"] + counts["terlambat"] + counts["pulang_cepat"],
+            "persentase": (
+                (counts["hadir"] + counts["terlambat"]) * 100 / working_days
+                if working_days
+                else 0
+            ),
         }
         for key, counts in sorted(totals.items(), key=lambda pair: pair[0][2].casefold())
     ]
@@ -123,7 +130,14 @@ def _teacher_sheet_title(workbook, teacher_name, current_sheet):
     return candidate
 
 
-def build_attendance_workbook(logs, year, month, teachers=(), teacher_sheet_names=False):
+def build_attendance_workbook(
+    logs,
+    year,
+    month,
+    teachers=(),
+    teacher_sheet_names=False,
+    sick_leaves=(),
+):
     logs = list(logs)
     teachers = list(teachers)
     template_path = Path(__file__).resolve().parent.parent / "Absen_Januari_26.xlsx"
@@ -151,6 +165,18 @@ def build_attendance_workbook(logs, year, month, teachers=(), teacher_sheet_name
     logs_by_teacher = defaultdict(dict)
     for log in logs:
         logs_by_teacher[log.guru_id][log.tanggal] = log
+    sick_dates_by_teacher = defaultdict(set)
+    first_day = date(year, month, 1)
+    last_day = date(year, month, days_in_month)
+    for leave in sick_leaves:
+        if leave.jenis_izin != "sakit" or leave.status_approval != "disetujui":
+            continue
+        leave_start = max(leave.tgl_mulai, first_day)
+        leave_end = min(leave.tgl_selesai, last_day)
+        for day_number in range((leave_end - leave_start).days + 1):
+            sick_date = leave_start + timedelta(days=day_number)
+            if sick_date.weekday() != 6:
+                sick_dates_by_teacher[leave.guru_id].add(sick_date)
 
     report_teachers = list(teachers)
     teacher_ids = {teacher.pk for teacher in report_teachers}
@@ -190,8 +216,6 @@ def build_attendance_workbook(logs, year, month, teachers=(), teacher_sheet_name
             sheet["I4"] = ":"
             sheet["R4"] = ":"
 
-        first_day = date(year, month, 1)
-        last_day = date(year, month, days_in_month)
         sheet["Q3"] = f"Tgl. Periode : {first_day:%d/%m/%Y}  s/d  {last_day:%d/%m/%Y}"
 
         total_attendance = 0
@@ -239,6 +263,10 @@ def build_attendance_workbook(logs, year, month, teachers=(), teacher_sheet_name
             checkout = _excel_datetime(log.waktu_pulang) if log and log.waktu_pulang else None
             checkin_time = checkin.time() if isinstance(checkin, datetime) else None
             checkout_time = checkout.time() if isinstance(checkout, datetime) else None
+            is_sick_leave = teacher and current_date in sick_dates_by_teacher[teacher.pk]
+            if is_sick_leave and not log:
+                checkin_time = planned_checkin
+                checkout_time = planned_checkout
             sheet[f"F{row}"] = checkin_time
             sheet[f"I{row}"] = checkout_time
 
@@ -272,12 +300,20 @@ def build_attendance_workbook(logs, year, month, teachers=(), teacher_sheet_name
     summary = _new_sheet(
         workbook,
         "Rekap Per Guru",
-        ("NIP", "Nama Guru", "Hadir", "Terlambat", "Pulang Cepat", "Total Presensi"),
-        (20, 32, 14, 16, 18, 18),
+        ("NIP", "Nama Guru", "Hadir", "Terlambat", "Izin Sakit", "Kehadiran (%)"),
+        (20, 32, 14, 16, 16, 20),
     )
-    teacher_summary = build_attendance_summary(logs, teachers)
+    teacher_summary = build_attendance_summary(logs, teachers, year, month, sick_leaves)
     for item in teacher_summary:
-        summary.append((excel_text(item["nip"]), excel_text(item["nama"]), item["hadir"], item["terlambat"], item["pulang_cepat"], item["total"]))
+        summary.append((
+            excel_text(item["nip"]),
+            excel_text(item["nama"]),
+            item["hadir"],
+            item["terlambat"],
+            item["izin_sakit"],
+            item["persentase"] / 100,
+        ))
+        summary.cell(summary.max_row, 6).number_format = "0.0%"
     summary.auto_filter.ref = f"A1:F{max(1, summary.max_row)}"
 
     details = workbook.create_sheet("Detail Absensi")
