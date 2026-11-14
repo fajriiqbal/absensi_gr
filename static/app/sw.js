@@ -1,10 +1,10 @@
-const CACHE_NAME = 'presensi-static-v4';
+const CACHE_NAME = 'presensi-static-v5';
 const APP_ASSETS = [
-	'/pwa/manifest-v4.json',
-	'/pwa/icon/v4/64.png',
-	'/pwa/icon/v4/180.png',
-	'/pwa/icon/v4/192.png',
-	'/pwa/icon/v4/512.png',
+	'/pwa/manifest-v5.json',
+	'/pwa/icon/v5/64.png',
+	'/pwa/icon/v5/180.png',
+	'/pwa/icon/v5/192.png',
+	'/pwa/icon/v5/512.png',
 	'/static/app/images/logo-madrasah.png?v=4',
 ];
 

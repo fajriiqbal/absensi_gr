@@ -235,13 +235,13 @@ def pwa_icon(request, size):
     with Image.open(logo_path) as source:
         logo = source.convert("RGBA")
 
-    canvas = Image.new("RGBA", (size, size), "#173f35")
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     padding = round(size * 0.08)
     logo.thumbnail((size - padding * 2, size - padding * 2), Image.Resampling.LANCZOS)
     canvas.alpha_composite(logo, ((size - logo.width) // 2, (size - logo.height) // 2))
 
     image_buffer = BytesIO()
-    canvas.convert("RGB").save(image_buffer, format="PNG", optimize=True)
+    canvas.save(image_buffer, format="PNG", optimize=True)
     response = HttpResponse(image_buffer.getvalue(), content_type="image/png")
     response["Cache-Control"] = "public, max-age=31536000, immutable"
     return response

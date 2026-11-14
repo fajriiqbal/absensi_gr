@@ -294,7 +294,7 @@ class AdminDashboardTests(TestCase):
         worker = self.client.get(reverse("service-worker"))
         self.assertEqual(worker.status_code, 200)
         self.assertEqual(worker["Service-Worker-Allowed"], "/")
-        self.assertContains(worker, "presensi-static-v4")
+        self.assertContains(worker, "presensi-static-v5")
 
         manifest_response = self.client.get(reverse("pwa-manifest"))
         self.assertEqual(manifest_response.status_code, 200)
@@ -313,6 +313,9 @@ class AdminDashboardTests(TestCase):
             self.assertEqual(icon_response["Content-Type"], "image/png")
             with Image.open(BytesIO(icon_response.content)) as image:
                 self.assertEqual(image.size, (int(icon["sizes"].split("x")[0]),) * 2)
+                self.assertEqual(image.mode, "RGBA")
+                self.assertEqual(image.getpixel((0, 0))[3], 0)
+                self.assertGreater(image.getchannel("A").getbbox()[2], 0)
 
         self.assertEqual(self.client.get(reverse("pwa-icon", args=(64,))).status_code, 200)
         self.assertEqual(self.client.get(reverse("pwa-icon", args=(180,))).status_code, 200)

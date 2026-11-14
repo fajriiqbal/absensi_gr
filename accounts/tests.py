@@ -36,9 +36,9 @@ class LoginPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "NIP")
         self.assertContains(response, "/static/app/images/logo-madrasah.png?v=4")
-        self.assertContains(response, "/pwa/icon/v4/64.png")
-        self.assertContains(response, "/pwa/icon/v4/180.png")
-        self.assertContains(response, "/pwa/manifest-v4.json")
+        self.assertContains(response, "/pwa/icon/v5/64.png")
+        self.assertContains(response, "/pwa/icon/v5/180.png")
+        self.assertContains(response, "/pwa/manifest-v5.json")
         UserGuru.objects.create_user(
             username="guru", nip="198002", nama_lengkap="Guru Dua", email="guru2@example.test", password="StrongPass123!"
         )
