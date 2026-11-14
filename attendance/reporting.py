@@ -51,7 +51,7 @@ def resolve_report_period(params):
 
 
 def build_attendance_summary(logs, teachers):
-    totals = defaultdict(lambda: {"hadir": 0, "terlambat": 0, "pulang_cepat": 0, "total": 0})
+    totals = defaultdict(lambda: {"hadir": 0, "terlambat": 0, "pulang_cepat": 0})
     for teacher in teachers:
         totals[(teacher.pk, teacher.nip, teacher.nama_lengkap)]
     for log in logs:
@@ -64,9 +64,14 @@ def build_attendance_summary(logs, teachers):
             item["hadir"] += 1
         if log.status_pulang == "pulang_cepat" and log.status != "pulang_cepat":
             item["pulang_cepat"] += 1
-        item["total"] += 1
     return [
-        {"id": key[0], "nip": key[1], "nama": key[2], **counts}
+        {
+            "id": key[0],
+            "nip": key[1],
+            "nama": key[2],
+            **counts,
+            "total": counts["hadir"] + counts["terlambat"] + counts["pulang_cepat"],
+        }
         for key, counts in sorted(totals.items(), key=lambda pair: pair[0][2].casefold())
     ]
 

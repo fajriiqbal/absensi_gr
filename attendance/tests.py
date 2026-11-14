@@ -615,7 +615,7 @@ class AttendanceReportTests(TestCase):
             username="report-guru-2", nip="198031", nama_lengkap="Guru Rekap Dua", email="report-guru-2@example.test", password="StrongPass123!"
         )
         today = date(2026, 1, 15)
-        for teacher, status in ((first_teacher, "hadir"), (second_teacher, "terlambat")):
+        for teacher, status in ((first_teacher, "terlambat"), (second_teacher, "terlambat")):
             log = AbsensiLog.objects.create(
                 guru=teacher,
                 waktu_masuk=timezone.make_aware(datetime(2026, 1, 15, 7, 45)),
@@ -634,6 +634,11 @@ class AttendanceReportTests(TestCase):
         self.assertEqual(preview.status_code, 200)
         self.assertContains(preview, "Ringkasan per guru")
         self.assertContains(preview, "data-download-progress")
+        summary_row = preview.context["summary"][0]
+        self.assertEqual(summary_row["hadir"], 0)
+        self.assertEqual(summary_row["terlambat"], 1)
+        self.assertEqual(summary_row["pulang_cepat"], 1)
+        self.assertEqual(summary_row["total"], 2)
         params["aksi"] = "xlsx"
         response = self.client.get(reverse("attendance-report"), params)
         self.assertEqual(response.status_code, 200)
@@ -662,8 +667,9 @@ class AttendanceReportTests(TestCase):
         summary = workbook["Rekap Per Guru"]
         self.assertEqual(summary.max_row, 2)
         self.assertEqual(summary["A2"].value, first_teacher.nip)
-        self.assertEqual(summary["C2"].value, 1)
+        self.assertEqual(summary["D2"].value, 1)
         self.assertEqual(summary["E2"].value, 1)
+        self.assertEqual(summary["F2"].value, 2)
         self.assertEqual(workbook["Detail Absensi"].max_row, 2)
         self.assertEqual(workbook["Detail Absensi"]["H1"].value, "Status Pulang")
 
