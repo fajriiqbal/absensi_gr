@@ -54,7 +54,13 @@ def attendance_report(request):
     summary = build_attendance_summary(logs, report_teachers)
 
     if request.GET.get("aksi") == "xlsx" and not error:
-        workbook = build_attendance_workbook(logs, year, month, report_teachers)
+        workbook = build_attendance_workbook(
+            logs,
+            year,
+            month,
+            report_teachers,
+            teacher_sheet_names=selected_teacher is None,
+        )
         response = HttpResponse(workbook, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         response["Content-Disposition"] = f'attachment; filename="rekap-absensi-{year}-{month:02d}.xlsx"'
         return response

@@ -99,7 +99,26 @@ def _excel_datetime(value):
     return timezone.localtime(value).replace(tzinfo=None) if timezone.is_aware(value) else value
 
 
-def build_attendance_workbook(logs, year, month, teachers=()):
+def _teacher_sheet_title(workbook, teacher_name, current_sheet):
+    invalid_characters = set("[]:*?/\\")
+    title = "".join(
+        " " if character in invalid_characters else character
+        for character in str(teacher_name or "")
+    ).strip().strip("'")
+    title = title or "Guru"
+    reserved_titles = {
+        sheet.title.casefold() for sheet in workbook.worksheets if sheet is not current_sheet
+    } | {"rekap per guru", "detail absensi"}
+    candidate = title[:31]
+    suffix_number = 2
+    while candidate.casefold() in reserved_titles:
+        suffix = f" ({suffix_number})"
+        candidate = f"{title[:31 - len(suffix)].rstrip()}{suffix}"
+        suffix_number += 1
+    return candidate
+
+
+def build_attendance_workbook(logs, year, month, teachers=(), teacher_sheet_names=False):
     logs = list(logs)
     teachers = list(teachers)
     template_path = Path(__file__).resolve().parent.parent / "Absen_Januari_26.xlsx"
@@ -140,7 +159,14 @@ def build_attendance_workbook(logs, year, month, teachers=()):
 
     for index, teacher in enumerate(report_teachers):
         sheet = template_sheet if index == 0 else workbook.copy_worksheet(template_sheet)
-        sheet.title = f"Laporan Guru {index + 1}" if teacher else "Laporan Absensi"
+        if teacher:
+            sheet.title = (
+                _teacher_sheet_title(workbook, teacher.nama_lengkap, sheet)
+                if teacher_sheet_names
+                else report_month_name(month)
+            )
+        else:
+            sheet.title = "Laporan Absensi"
 
         for row in range(8, 38 + (days_in_month > 30)):
             for column in range(1, sheet.max_column + 1):

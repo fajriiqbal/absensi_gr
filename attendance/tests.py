@@ -639,7 +639,7 @@ class AttendanceReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response["Content-Disposition"].endswith(".xlsx\""))
         workbook = load_workbook(BytesIO(response.content))
-        report = workbook["Laporan Guru 1"]
+        report = workbook["Januari"]
         self.assertEqual(report["B4"].value, f"PIN : {first_teacher.pk}")
         self.assertEqual(report["B5"].value, "NIK : 198030")
         self.assertEqual(report["I4"].value, ": Guru Rekap Satu")
@@ -673,11 +673,20 @@ class AttendanceReportTests(TestCase):
         self.assertEqual(all_teachers_response.status_code, 200)
         self.assertCountEqual(
             (
-                all_teachers_workbook["Laporan Guru 1"]["I4"].value,
-                all_teachers_workbook["Laporan Guru 2"]["I4"].value,
+                all_teachers_workbook["Guru Rekap Satu"]["I4"].value,
+                all_teachers_workbook["Guru Rekap Dua"]["I4"].value,
             ),
             (": Guru Rekap Satu", ": Guru Rekap Dua"),
         )
+
+        december_response = self.client.get(reverse("attendance-report"), {
+            "bulan": 12,
+            "tahun": today.year,
+            "guru": first_teacher.pk,
+            "aksi": "xlsx",
+        })
+        december_workbook = load_workbook(BytesIO(december_response.content))
+        self.assertIn("Desember", december_workbook.sheetnames)
 
     def test_teacher_cannot_open_admin_attendance_report(self):
         teacher = UserGuru.objects.create_user(
