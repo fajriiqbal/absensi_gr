@@ -64,6 +64,91 @@ class AttendanceScanTests(TestCase):
         self.assertContains(response, "visibilitychange")
         self.assertContains(response, "cache: 'no-store'")
 
+    def test_kamad_can_scan_attendance_and_submit_personal_leave(self):
+        kamad = UserGuru.objects.create_user(
+            username="attendance-kamad",
+            nip="900040",
+            nama_lengkap="Kepala Madrasah",
+            email="attendance-kamad@example.test",
+            password="KamadPass!734",
+            role="kamad",
+        )
+        self.client.force_login(kamad)
+
+        for route in ("guru-scan", "guru-my-qr", "leave-requests", "teacher-history"):
+            with self.subTest(route=route):
+                self.assertEqual(self.client.get(reverse(route)).status_code, 200)
+        leave_page = self.client.get(reverse("leave-requests"))
+        for route in ("guru-scan", "guru-my-qr", "leave-requests", "teacher-history"):
+            self.assertContains(leave_page, reverse(route))
+
+        leave_date = timezone.localdate() + timedelta(days=1)
+        leave_response = self.client.post(reverse("leave-requests"), {
+            "jenis_izin": "datang_terlambat",
+            "tgl_mulai": leave_date.isoformat(),
+            "tgl_selesai": leave_date.isoformat(),
+            "jam_datang_diminta": "01:00",
+            "alasan": "Keperluan keluarga.",
+        })
+        self.assertRedirects(leave_response, reverse("leave-requests"))
+        leave = PengajuanIzin.objects.get(guru=kamad)
+        self.assertEqual(leave.jenis_izin, "datang_terlambat")
+        leave.status_approval = "disetujui"
+        leave.save(update_fields=("status_approval",))
+        letter_response = self.client.get(reverse("leave-letter", args=(leave.pk,)))
+        self.assertEqual(letter_response.status_code, 200)
+        self.assertEqual(letter_response["Content-Type"], "application/pdf")
+
+        today = timezone.localdate()
+        arrival = timezone.make_aware(
+            datetime.combine(today, time(7, 0)),
+            timezone.get_current_timezone(),
+        )
+        with (
+            patch("attendance.schedule.timezone.now", return_value=arrival),
+            patch(
+                "attendance.views.verify_dynamic_qr_token",
+                side_effect=lambda token: verify_dynamic_qr_token(token, arrival),
+            ),
+        ):
+            response = self.client.post(
+                reverse("attendance-scan"),
+                {"qr_payload": generate_dynamic_qr_token(arrival)},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(AbsensiLog.objects.get(guru=kamad).metode_scan, "qr_tv")
+        self.assertContains(self.client.get(reverse("teacher-history")), "Keperluan keluarga.")
+
+    def test_kamad_qr_can_be_used_at_the_kiosk(self):
+        kamad = UserGuru.objects.create_user(
+            username="kiosk-kamad",
+            nip="900041",
+            nama_lengkap="Kepala Madrasah Kiosk",
+            email="kiosk-kamad@example.test",
+            password="KamadPass!734",
+            role="kamad",
+            is_staff=True,
+        )
+        self.client.force_login(kamad)
+        qr_page = self.client.get(reverse("guru-my-qr"))
+        self.assertContains(qr_page, "kamad-mobile-nav")
+        self.assertContains(qr_page, reverse("leave-requests"))
+        today = timezone.localdate()
+        arrival = timezone.make_aware(
+            datetime.combine(today, time(7, 0)),
+            timezone.get_current_timezone(),
+        )
+        with patch("attendance.schedule.timezone.now", return_value=arrival):
+            qr_response = self.client.post(reverse("teacher-qr"))
+            self.assertEqual(qr_response.status_code, 200)
+            response = self.client.post(
+                reverse("kiosk-scan"),
+                {"qr_payload": qr_response.json()["payload"]},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["event"], "masuk")
+        self.assertTrue(AbsensiLog.objects.filter(guru=kamad, metode_scan="qr_guru").exists())
+
     def test_tv_qr_records_arrival_and_departure_once(self):
         settings_obj = PengaturanWaktuPresensi.objects.get(pk=1)
         settings_obj.jam_mulai_pulang = time(12, 0)
@@ -311,7 +396,7 @@ class AttendanceScanTests(TestCase):
         self.teacher.save(update_fields=("is_staff",))
         page = self.client.get(reverse("kiosk-scan-page"))
         self.assertEqual(page.status_code, 200)
-        self.assertContains(page, "Pindai QR Guru")
+        self.assertContains(page, "Pindai QR Presensi")
         self.assertContains(page, reverse("kiosk-scan"))
 
         response = self.client.post(reverse("kiosk-scan"), {"qr_payload": "invalid"})
@@ -453,13 +538,13 @@ class LeaveRequestWorkflowTests(TestCase):
         self.assertNotContains(response, reverse("school-qr-display"))
         self.assertNotContains(response, "Pindai untuk presensi")
 
-    def test_non_teacher_cannot_open_teacher_history(self):
+    def test_kamad_can_open_personal_history(self):
         kamad = UserGuru.objects.create_user(
             username="history-kamad", nip="900024", nama_lengkap="Kepala Madrasah", email="history-kamad@example.test", password="HistoryKamad!734", role="kamad"
         )
         self.client.force_login(kamad)
 
-        self.assertEqual(self.client.get(reverse("teacher-history")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("teacher-history")).status_code, 200)
 
     def test_teacher_submits_and_downloads_letter_after_approval(self):
         start = timezone.localdate() + timedelta(days=1)

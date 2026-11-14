@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}QR Kiosk | Guru{% endblock %}
+{% block title %}QR Kiosk | Presensi{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-2xl px-5 py-10 text-center" x-data="teacherQr()" x-init="start()">
   <div class="hidden">{% csrf_token %}</div>
-  <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Presensi Kiosk</p><h1 class="mt-2 text-2xl font-semibold text-[#173f35]">QR Guru</h1>
+  <p class="text-xs font-bold uppercase tracking-[.18em] text-[#a45642]">Presensi Kiosk</p><h1 class="mt-2 text-2xl font-semibold text-[#173f35]">QR Presensi</h1>
   <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-[#63736b]">Tunjukkan QR ini ke petugas kiosk. QR diperbarui otomatis dan hanya berlaku 45 detik. Pastikan seluruh kotak QR terlihat oleh kamera.</p>
   <div class="mx-auto mt-7 inline-block rounded-md border border-[#dbe1dc] bg-white p-4"><div id="guru-qr" class="flex h-64 w-64 items-center justify-center"></div></div>
   <p class="mt-4 text-sm text-[#63736b]">Kode berubah dalam <span class="font-semibold tabular-nums text-[#173f35]" x-text="remaining"></span> detik</p><p class="mt-3 min-h-5 text-sm text-[#a34431]" x-text="error" role="status" aria-live="polite"></p>

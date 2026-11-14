@@ -26,6 +26,7 @@ from .schedule import AttendanceScheduleError, record_attendance_event
 
 MAX_SELFIE_SIZE = 5 * 1024 * 1024
 REPORT_MONTH_OPTIONS = tuple(enumerate(MONTH_NAMES, start=1))
+SELF_SERVICE_ROLES = ("guru", "kamad")
 
 
 def api_error(message, status=400):
@@ -108,14 +109,14 @@ def validate_selfie(upload):
 
 
 def scan_page(request):
-    if request.user.role != "guru":
+    if request.user.role not in SELF_SERVICE_ROLES:
         return render(request, "403.html", status=403)
     return render(request, "attendance/scan.html")
 
 
 @login_required
 def leave_requests(request):
-    if request.user.role != "guru":
+    if request.user.role not in SELF_SERVICE_ROLES:
         return render(request, "403.html", status=403)
     leave_instance = PengajuanIzin(guru=request.user)
     submission_error = False
@@ -141,7 +142,7 @@ def leave_requests(request):
 
 @login_required
 def teacher_history(request):
-    if request.user.role != "guru":
+    if request.user.role not in SELF_SERVICE_ROLES:
         return render(request, "403.html", status=403)
     return render(request, "attendance/teacher_history.html", {
         "attendance_logs": AbsensiLog.objects.filter(guru=request.user).order_by("-tanggal", "-waktu_masuk"),
@@ -153,7 +154,7 @@ def teacher_history(request):
 
 @login_required
 def download_leave_letter(request, pk):
-    if request.user.role != "guru":
+    if request.user.role not in SELF_SERVICE_ROLES:
         raise Http404
     leave = get_object_or_404(
         PengajuanIzin.objects.select_related("guru", "approved_by"),
@@ -169,7 +170,7 @@ def download_leave_letter(request, pk):
 
 @login_required
 def my_qr(request):
-    if request.user.role != "guru":
+    if request.user.role not in SELF_SERVICE_ROLES:
         return render(request, "403.html", status=403)
     return render(request, "attendance/my_qr.html")
 
@@ -177,8 +178,8 @@ def my_qr(request):
 @login_required
 @require_POST
 def teacher_qr_api(request):
-    if request.user.role != "guru":
-        return api_error("Akun ini tidak memiliki QR guru.", 403)
+    if request.user.role not in SELF_SERVICE_ROLES:
+        return api_error("Akun ini tidak memiliki QR presensi pribadi.", 403)
     response = JsonResponse({"payload": generate_teacher_qr_token(request.user), "ttl": 45})
     response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
     return response
@@ -187,8 +188,8 @@ def teacher_qr_api(request):
 @require_POST
 @login_required
 def scan_api(request):
-    if request.user.role != "guru":
-        return api_error("Akun ini tidak memiliki akses presensi guru.", 403)
+    if request.user.role not in SELF_SERVICE_ROLES:
+        return api_error("Akun ini tidak memiliki akses presensi pribadi.", 403)
 
     qr_payload = request.POST.get("qr_payload", "").strip()
     lat_value = request.POST.get("latitude", "")
@@ -274,13 +275,17 @@ def kiosk_scan_api(request):
         return api_error("Akses kiosk tidak diizinkan.", 403)
     payload = request.POST.get("qr_payload", "").strip()
     if not payload.startswith(GURU_PREFIX):
-        return api_error("QR guru tidak valid.")
+        return api_error("QR presensi tidak valid.")
     claims, valid = verify_teacher_qr_token(payload.removeprefix(GURU_PREFIX))
     if not valid:
         return api_error(claims["error"])
-    guru = UserGuru.objects.filter(pk=claims.get("sub"), role="guru", is_active=True).first()
+    guru = UserGuru.objects.filter(
+        pk=claims.get("sub"),
+        role__in=SELF_SERVICE_ROLES,
+        is_active=True,
+    ).first()
     if guru is None:
-        return api_error("Akun guru tidak ditemukan atau tidak aktif.")
+        return api_error("Akun guru/Kamad tidak ditemukan atau tidak aktif.")
     try:
         _, event = record_attendance_event(guru, method="qr_guru")
     except AttendanceScheduleError as exc:
@@ -296,9 +301,13 @@ def kiosk_manual_api(request):
     if not kiosk_allowed(request):
         return api_error("Akses kiosk tidak diizinkan.", 403)
     nip = request.POST.get("nip", "").strip()
-    guru = UserGuru.objects.filter(nip=nip, role="guru", is_active=True).first()
+    guru = UserGuru.objects.filter(
+        nip=nip,
+        role__in=SELF_SERVICE_ROLES,
+        is_active=True,
+    ).first()
     if guru is None:
-        return api_error("NIP guru tidak ditemukan atau tidak aktif.")
+        return api_error("NIP guru/Kamad tidak ditemukan atau tidak aktif.")
     photo = request.FILES.get("foto_selfie")
     today = timezone.localdate()
     existing_log = AbsensiLog.objects.filter(guru=guru, tanggal=today).first()
