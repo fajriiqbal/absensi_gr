@@ -635,6 +635,61 @@ class AdminManagementCRUDTests(TestCase):
             self.assertRedirects(response, reverse(list_route))
             self.assertFalse(type(record).objects.filter(pk=record.pk).exists())
 
+    def test_admin_can_download_approved_leave_pdf_from_leave_and_attendance_lists(self):
+        teacher = UserGuru.objects.create_user(
+            username="leave-pdf-teacher",
+            nip="910003",
+            nama_lengkap="Guru Surat Izin",
+            email="leave-pdf@example.test",
+            password="TeacherPass!734",
+        )
+        leave_date = timezone.localdate()
+        leave = PengajuanIzin.objects.create(
+            guru=teacher,
+            jenis_izin="sakit",
+            tgl_mulai=leave_date,
+            tgl_selesai=leave_date,
+            alasan="Sakit",
+            status_approval="disetujui",
+            approved_by=self.admin,
+        )
+        pending_leave = PengajuanIzin.objects.create(
+            guru=teacher,
+            jenis_izin="izin",
+            tgl_mulai=leave_date,
+            tgl_selesai=leave_date,
+            alasan="Belum disetujui",
+        )
+        AbsensiLog.objects.create(
+            guru=teacher,
+            waktu_masuk=timezone.now(),
+            metode_scan="manual_kiosk",
+            status="hadir",
+        )
+
+        leave_pdf_url = reverse("admin-leave-letter", args=(leave.pk,))
+        leaves_response = self.client.get(reverse("admin-leaves"))
+        self.assertContains(leaves_response, leave_pdf_url)
+        self.assertNotContains(
+            leaves_response,
+            reverse("admin-leave-letter", args=(pending_leave.pk,)),
+        )
+        self.assertEqual(
+            self.client.get(reverse("admin-leave-letter", args=(pending_leave.pk,))).status_code,
+            404,
+        )
+        attendance_response = self.client.get(reverse("admin-attendance"))
+        self.assertContains(attendance_response, leave_pdf_url)
+
+        pdf_response = self.client.get(leave_pdf_url)
+        self.assertEqual(pdf_response.status_code, 200)
+        self.assertEqual(pdf_response["Content-Type"], "application/pdf")
+        self.assertTrue(pdf_response.content.startswith(b"%PDF"))
+        self.assertIn(f"surat-izin-{teacher.nip}-{leave_date:%Y%m%d}", pdf_response["Content-Disposition"])
+
+        self.client.force_login(teacher)
+        self.assertEqual(self.client.get(leave_pdf_url).status_code, 404)
+
     def test_leave_can_be_created_with_schedule_details(self):
         media_dir = TemporaryDirectory()
         self.addCleanup(media_dir.cleanup)

@@ -24,6 +24,7 @@ urlpatterns = [
 	path("admin/manajemen/presensi/<int:pk>/hapus", management_views.delete_confirmation, {"model_name": "attendance"}, name="admin-attendance-delete-confirm"),
 	path("admin/manajemen/perizinan", management_views.manage_leaves, name="admin-leaves"),
 	path("admin/manajemen/perizinan/tambah", management_views.leave_add, name="admin-leave-add"),
+	path("admin/manajemen/perizinan/<int:pk>/surat.pdf", management_views.download_admin_leave_letter, name="admin-leave-letter"),
 	path("admin/manajemen/perizinan/<int:pk>/ubah", management_views.leave_edit, name="admin-leave-edit"),
 	path("admin/manajemen/perizinan/<int:pk>/hapus", management_views.delete_confirmation, {"model_name": "leave"}, name="admin-leave-delete-confirm"),
 	path("admin/manajemen/lokasi", management_views.manage_locations, name="admin-locations"),

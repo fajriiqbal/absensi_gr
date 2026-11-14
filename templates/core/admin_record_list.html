@@ -42,8 +42,9 @@
             {% for detail in entry.details %}<span>{{ detail }}</span>{% endfor %}
           </div>
         </div>
-        <div class="flex shrink-0 gap-2">
-          {% if entry.pdf_url and entry.record.is_active %}<a class="button button-muted" href="{{ entry.pdf_url }}" data-download-progress>Unduh PDF</a>{% endif %}
+        <div class="flex shrink-0 flex-wrap gap-2">
+          {% if entry.pdf_url and entry.pdf_available %}<a class="button button-muted" href="{{ entry.pdf_url }}" data-download-progress>{% if entry.record.status_approval == "disetujui" %}Unduh surat izin PDF{% else %}Unduh PDF{% endif %}</a>{% endif %}
+          {% for pdf_link in entry.pdf_links %}<a class="button button-muted" href="{{ pdf_link.url }}" data-download-progress>{{ pdf_link.label }}</a>{% endfor %}
           <a class="button button-muted" href="{{ entry.edit_url }}">Ubah</a>
           {% if entry.can_delete %}<a class="button border border-[#ead0ca] bg-[#fff5f2] text-[#963d2f]" href="{{ entry.delete_url }}">Hapus</a>{% endif %}
         </div>

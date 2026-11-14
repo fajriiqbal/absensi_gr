@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from accounts.models import UserGuru
+from attendance.letters import generate_leave_letter_pdf
 from attendance.models import AbsensiLog, PengajuanIzin
 
 from .management_forms import (
@@ -32,7 +33,7 @@ def _require_admin(request):
         raise Http404
 
 
-def _record_list(request, *, title, records, search_fields, route, delete_route, list_url, add_url, describe, pdf_route=None, import_url=None, template_url=None):
+def _record_list(request, *, title, records, search_fields, route, delete_route, list_url, add_url, describe, pdf_route=None, pdf_links_for=None, import_url=None, template_url=None):
     query = request.GET.get("q", "").strip()
     if query:
         search = Q()
@@ -40,6 +41,7 @@ def _record_list(request, *, title, records, search_fields, route, delete_route,
             search |= Q(**{f"{field}__icontains": query})
         records = records.filter(search)
     page = Paginator(records, 25).get_page(request.GET.get("page"))
+    pdf_links = pdf_links_for(page.object_list) if pdf_links_for else {}
     entries = [
         {
             "record": record,
@@ -47,6 +49,11 @@ def _record_list(request, *, title, records, search_fields, route, delete_route,
             "edit_url": reverse(route, args=(record.pk,)),
             "delete_url": reverse(delete_route, args=(record.pk,)),
             "pdf_url": reverse(pdf_route, args=(record.pk,)) if pdf_route else "",
+            "pdf_available": (
+                getattr(record, "is_active", False)
+                or getattr(record, "status_approval", None) == "disetujui"
+            ),
+            "pdf_links": pdf_links.get(record.pk, []),
             "can_delete": not isinstance(record, UserGuru) or record.pk != request.user.pk,
         }
         for record in page.object_list
@@ -153,6 +160,7 @@ def manage_attendance(request):
         delete_route="admin-attendance-delete-confirm",
         list_url="admin-attendance",
         add_url=reverse("admin-attendance-add"),
+        pdf_links_for=_attendance_leave_pdf_links,
         describe=lambda log: (
             f"{log.tanggal:%d-%m-%Y}",
             log.get_status_display(),
@@ -174,12 +182,53 @@ def manage_leaves(request):
         delete_route="admin-leave-delete-confirm",
         list_url="admin-leaves",
         add_url=reverse("admin-leave-add"),
+        pdf_route="admin-leave-letter",
         describe=lambda leave: (
             leave.get_jenis_izin_display(),
             f"{leave.tgl_mulai:%d-%m-%Y} s.d. {leave.tgl_selesai:%d-%m-%Y}",
             leave.get_status_approval_display(),
         ),
     )
+
+
+def _attendance_leave_pdf_links(logs):
+    logs = list(logs)
+    if not logs:
+        return {}
+    teacher_ids = {log.guru_id for log in logs}
+    first_date = min(log.tanggal for log in logs)
+    last_date = max(log.tanggal for log in logs)
+    approved_leaves = PengajuanIzin.objects.filter(
+        guru_id__in=teacher_ids,
+        status_approval="disetujui",
+        tgl_mulai__lte=last_date,
+        tgl_selesai__gte=first_date,
+    )
+    links = {}
+    for leave in approved_leaves:
+        for log in logs:
+            if log.guru_id == leave.guru_id and leave.tgl_mulai <= log.tanggal <= leave.tgl_selesai:
+                links.setdefault(log.pk, []).append({
+                    "url": reverse("admin-leave-letter", args=(leave.pk,)),
+                    "label": f"Unduh {leave.get_jenis_izin_display()} PDF",
+                })
+    return links
+
+
+@login_required
+def download_admin_leave_letter(request, pk):
+    _require_admin(request)
+    leave = get_object_or_404(
+        PengajuanIzin.objects.select_related("guru", "approved_by"),
+        pk=pk,
+        status_approval="disetujui",
+    )
+    response = HttpResponse(generate_leave_letter_pdf(leave), content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="surat-izin-{leave.guru.nip}-{leave.tgl_mulai:%Y%m%d}-{leave.pk}.pdf"'
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @login_required
